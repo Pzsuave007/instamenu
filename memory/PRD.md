@@ -86,7 +86,9 @@ Locations folded into Settings; screen cards show a poster of what is playing.
   media already uploaded is reused instead of re-uploaded. The same file can back several screens.
 - **Reassignment fix**: heartbeat and both players compare the playlist **id** as well as its
   version, so moving a device to another screen switches the television even when both playlists sit
-  on the same version number; `PATCH /api/devices/{id}` also clears the device's per-screen state.
+  on the same version number; `PATCH /api/devices/{id}` also clears the device's per-screen state and
+  bumps the target playlist's version, so **already-installed older APKs** (which compare only
+  versions and do not send `playlist_id`) also switch — no app update needed for this fix.
 
 ## Verified
 Testing agent iteration 1 (3 issues → fixed: internal media URL, dead `?auth=` fallback, IP-keyed

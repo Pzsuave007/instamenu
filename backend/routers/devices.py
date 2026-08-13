@@ -92,6 +92,13 @@ async def update_device(device_id: str, payload: DeviceUpdate, user: dict = Depe
         # The TV is about to show a different screen: forget what it reported for the old one.
         data["playlist_version"] = None
         data["reported_playlist_id"] = None
+        # Bump the target playlist's version too, so that even older player builds — which only
+        # compare version numbers — reload instead of keeping the previous screen's content.
+        if screen.get("playlist_id"):
+            await db.playlists.update_one(
+                {"id": screen["playlist_id"], "org_id": user["org_id"]},
+                {"$inc": {"version": 1}, "$set": {"updated_at": now_iso()}},
+            )
     res = await db.devices.update_one({"id": device_id, "org_id": user["org_id"]}, {"$set": data})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Device not found")

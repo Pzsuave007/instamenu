@@ -1,0 +1,89 @@
+{
+  "theme": "light",
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "import_url": "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');",
+      "rules": "Never use Inter for headings. Apply tracking-tight to H1-H3. Use font-semibold or font-medium to avoid overly heavy black weights unless intentional. Inject into global CSS."
+    },
+    "body": {
+      "font_family": "Inter",
+      "import_url": "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');",
+      "rules": "Use for all standard body copy, labels, and data tables. Maintain high contrast."
+    }
+  },
+  "colors": {
+    "background": "#FAFAFA",
+    "surface": "#FFFFFF",
+    "primary": "#F97316",
+    "primary_hover": "#EA580C",
+    "text_main": "#09090B",
+    "text_muted": "#71717A",
+    "border": "#E4E4E7",
+    "success": "#22C55E",
+    "warning": "#EAB308",
+    "danger": "#EF4444",
+    "archetype_rules": "Archetype 4 (Swiss & High Contrast) + Soft Utility. Primary CTA should be the vibrant orange. Everything else should rely on high contrast monochrome hierarchy. Do not use teal green/blue."
+  },
+  "layouts": {
+    "dashboard_shell": "Use a collapsible left sidebar layout (not top bar). Sidebar should have a very subtle border-r (border-zinc-200) and white background. The main content area should have bg-zinc-50 to provide contrast against white content cards.",
+    "spacing": "Use generous padding. p-6 or p-8 inside cards. gap-6 or gap-8 for grid layouts. This prevents cognitive overload.",
+    "cards": "White background, rounded-xl or rounded-2xl, border border-zinc-200, shadow-sm. Use 'Tactile Neumorphism': mix soft shadows with crisp 1px inner borders for structure.",
+    "playlist_editor": "Two-pane layout (Bento inspired). Left: The playlist timeline (draggable items). Right: The media library picker. Prioritize desktop/tablet spacing.",
+    "screen_preview": "Simulate a TV screen with a 16:9 aspect ratio container. Use a thick black border (bg-black p-2 rounded-lg) to mimic a physical TV bezel, with a very subtle inner shadow. Place playback controls floating below."
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full) or rounded-lg with clear hover states (slight lift -translate-y-0.5 and color shift). Primary buttons should be solid vibrant orange. Secondary buttons should be outline or subtle gray.",
+    "tables": "High contrast, screen-reader optimized. Use Shadcn UI Table. Striped rows on hover (hover:bg-zinc-100/50).",
+    "drag_drop": "Use @hello-pangea/dnd for reordering playlists. Show a drag handle icon (six dots from lucide-react) on draggable items.",
+    "toast": "Use sonner for success/error notifications. Positioned at top-right.",
+    "modals": "Shadcn Dialog. Use for 'Pair Device' (6-digit code entry) and 'Add Screen'."
+  },
+  "visual_enhancers": {
+    "empty_states": "Never show a blank screen. If a playlist is empty or no screens are added, show a friendly illustration/icon with a clear 'Add your first X' CTA. Use empty states to educate non-technical users.",
+    "micro_interactions": "Hover states on media thumbnails should show a subtle zoom-in effect (scale-105) with a play icon overlay for videos.",
+    "status_indicators": "Use pulsating dots (green for online, gray for offline) to indicate screen connectivity status. This is critical for restaurant owners to quickly verify displays."
+  },
+  "image_urls": {
+    "food_media_1": {
+      "url": "https://images.unsplash.com/photo-1549611016-3a70d82b5040?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwzfHxnb3VybWV0JTIwYnVyZ2VyfGVufDB8fHx8MTc4NjY1MTM1M3ww&ixlib=rb-4.1.0&q=85",
+      "category": "Media Library",
+      "description": "Gourmet Burger for menu display"
+    },
+    "food_media_2": {
+      "url": "https://images.unsplash.com/photo-1610440042657-612c34d95e9f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwyfHxnb3VybWV0JTIwYnVyZ2VyfGVufDB8fHx8MTc4NjY1MTM1M3ww&ixlib=rb-4.1.0&q=85",
+      "category": "Media Library",
+      "description": "Burger with lettuce and tomato"
+    },
+    "coffee_media": {
+      "url": "https://images.unsplash.com/photo-1559001724-fbad036dbc9e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHxjb2ZmZWUlMjBjdXAlMjBsYXR0ZSUyMGFydHxlbnwwfHx8fDE3ODY2NTEzNTN8MA&ixlib=rb-4.1.0&q=85",
+      "category": "Media Library",
+      "description": "Latte art coffee"
+    },
+    "restaurant_location": {
+      "url": "https://images.unsplash.com/photo-1667388968964-4aa652df0a9b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwaW50ZXJpb3IlMjBtb2Rlcm58ZW58MHx8fHwxNzg2NjUxMzUzfDA&ixlib=rb-4.1.0&q=85",
+      "category": "Locations",
+      "description": "Modern restaurant interior for location thumbnails"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement design using React JS (not TS).",
+    "Install and use @hello-pangea/dnd for drag-and-drop playlist reordering.",
+    "Use lucide-react for all icons. Avoid emojis.",
+    "Ensure 'Outfit' font is loaded in index.css and applied to h1-h6 tags. Use Inter for body.",
+    "When building the dashboard shell, use a left sidebar (w-64) that is collapsible. Implement proper responsive behavior (hamburger on mobile, permanent sidebar on desktop).",
+    "Use Shadcn UI (Card, Button, Input, Table, Dialog, Sonner, Tabs). Customize the Card component to have border-zinc-200 and shadow-sm.",
+    "All interactive and key informational elements MUST include a data-testid attribute in kebab-case.",
+    "Maintain the hierarchy: Admin -> Restaurant Account -> Location -> Screens -> Playlists -> Media."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container in the CSS file.",
+    "Always use modern button styles like pill-shaped, or rounded-lg with interaction animations.",
+    "NEVER use AI assistant Emoji characters (like 🤖🧠💭💡🔮🎯) for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, custom cursors, selection states, and loading animations separate good from extraordinary.",
+    "Use sonner for toasts."
+  ]
+}

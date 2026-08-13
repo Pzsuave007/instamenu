@@ -1,0 +1,48 @@
+{
+  "summary": "First full backend + frontend smoke of InstaMenu 2.0. 12/15 backend pytest cases pass. 3 real bugs identified: (a) device-facing media URL in /api/device/playlist manifest is built from request.base_url and returns the INTERNAL cluster hostname (http://instamenu2-preview.cluster-5.preview.emergentcf.cloud/...) which is unreachable from outside the cluster and will break Fire TV players, (b) /api/media/{id}/file?auth=<jwt> query-param auth returns 401 because Starlette Request.headers is cached before the scope header injection so the injected Authorization header is never seen by get_current_user, (c) brute-force lockout does not trip in the preview environment because request.client.host is the k8s ingress pod IP and it changes between requests (observed 10.208.135.198 and 10.208.135.194 in one run), so the (ip:email) identifier never accumulates 5 failures. Frontend smoke: owner login -> /dashboard renders with 3 seeded screens and stats; media thumbnails render (cookies are set so the ?auth fallback isn't hit in-browser). Admin login and other flows not exhaustively driven via UI given backend bugs found.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/device/playlist", "issue": "Manifest items[].url uses str(request.base_url), which resolves to the internal cluster URL (http://instamenu2-preview.cluster-5.preview.emergentcf.cloud) instead of REACT_APP_BACKEND_URL. Fire TV/off-cluster clients cannot fetch media. Fix: build URL from a configured public base (env MEDIA_BASE_URL or REACT_APP_BACKEND_URL) or wire uvicorn --proxy-headers and honor X-Forwarded-Host/Proto.", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/media/{id}/file?auth=<jwt>", "issue": "Returns 401. In routers/media.py media_file() the request.headers.get('X-Device-Token') access earlier caches Starlette's Headers object, so the subsequent request.scope['headers'] mutation is not visible to get_current_user. Fix options: (1) inline-verify the JWT from `auth` directly instead of mutating scope, or (2) construct a new Request from the mutated scope, or (3) access X-Device-Token via request.scope only. Frontend works today only because httpOnly cookies are sent, but the documented query-string fallback is dead.", "priority": "HIGH"},
+      {"endpoint": "POST /api/auth/login", "issue": "Brute-force lockout does not activate in the preview environment. Identifier is `{request.client.host}:{email}`, but behind the k8s ingress the client.host is the internal proxy IP and varies request-to-request (verified in backend logs). Also a distributed attacker will trivially bypass this. Fix: identify by email alone (with a per-email counter + IP list) or wire uvicorn --proxy-headers/forwarded_allow_ips='*' and use X-Forwarded-For.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/device/heartbeat", "issue": "Hardcoded 2-second minimum interval returns 429 when tests/players legitimately retry; consider making it configurable or removing since heartbeat_interval_seconds is already 60."},
+      {"endpoint": "GET /api/media (thumbnails)", "issue": "Cache-Control public, max-age=86400 is set for user-authenticated media; consider `private` since the URL includes ?auth=<jwt>."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Fire TV / external media playback", "issue": "Even if UI is fine, any client outside the cluster (e.g. Fire TV APK) that consumes /api/device/playlist will get unreachable media URLs.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix media URL in device_api.py: don't use request.base_url; use an externally-reachable base URL (REACT_APP_BACKEND_URL or MEDIA_BASE_URL env) or enable proxy headers on uvicorn.",
+    "Fix media_file() ?auth=<jwt> handling: decode the JWT directly from the query param instead of mutating request.scope headers.",
+    "Fix login brute-force lockout: key by email (not ip:email) and/or enable proxy_headers on uvicorn to read X-Forwarded-For.",
+    "Consider reducing/removing the 2s heartbeat rate-limit or documenting it clearly."
+  ],
+  "critical_code_review_comments": [
+    "routers/media.py media_file() scope header injection is unreliable due to Starlette Headers caching. Prefer explicit auth verification.",
+    "routers/device_api.py _media_url builds absolute URL from request.base_url; behind ingress this is the internal URL. Bad for real devices.",
+    "core/security.py check_lockout keyed by identifier only; caller uses ip:email — behind LB with ip rotation this defeats the intended per-email throttle.",
+    "server.py uses @app.on_event which is deprecated in FastAPI; migrate to lifespan.",
+    "CORS allow_origins defaults to '*' with allow_credentials=True; browsers reject this combo. Preview works because cookies are set on the same origin but this will break custom domains."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "80%", "frontend": "100% (smoke only)"},
+  "test_credentials": "admin@instamenu.com / Admin123!  |  owner@casalola.com / Owner123!",
+  "seed_data_creation": "Tests create TEST_* prefixed org/user/media/playlist/device rows and clean them up. Some may be left behind on failed runs (visible in screenshots) — safe to prune where name/email starts with TEST_.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live in /app/backend/tests/backend_test.py and run with the repo pytest.ini (fixed -n 2 --dist loadscope). To repro the three failing tests individually pass -n 0. Preview backend log confirms the LB rotates client IPs 10.208.135.194/198. For device manifest URL bug, GET /api/device/playlist with X-Device-Token and observe items[].url starts with cluster-internal host. For query-auth media bug, curl `/api/media/{id}/file?auth=<jwt>` without any cookie and observe 401.",
+  "rca of the issue": "1) /device/playlist manifest URL uses request.base_url which starlette derives from the ASGI scope's host header — since uvicorn is not configured with --proxy-headers, the raw internal Host header wins. Fix by enabling proxy_headers or moving to a configured public base URL. 2) media_file() accesses request.headers before mutating request.scope['headers']; starlette.Request.headers is a cached_property, so mutation of scope after first read has no effect. Simpler fix: `if auth: try: payload = decode_token(auth); user = await db.users.find_one(...)` and short-circuit. 3) The lockout identifier includes request.client.host which is the k8s ingress pod address and rotates between at least two IPs; enable proxy_headers with forwarded_allow_ips='*' and use request.headers['x-forwarded-for'].split(',')[0], or drop the IP from the identifier entirely."
+}

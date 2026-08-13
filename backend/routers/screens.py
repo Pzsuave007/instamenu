@@ -1,7 +1,8 @@
 """Screens, playlists (with versioning), schedules, and resolved playback config."""
 from datetime import datetime, timedelta, timezone
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from core.db import db
 from core.deps import audit, require_org_user
@@ -9,11 +10,13 @@ from core.models import (
     PlaylistIn,
     PlaylistUpdate,
     ScheduleIn,
+    ScreenContentIn,
     ScreenIn,
     ScreenUpdate,
     new_id,
     now_iso,
 )
+from routers.media import save_upload_file
 
 router = APIRouter(tags=["screens"])
 ONLINE_WINDOW = 120
@@ -67,6 +70,60 @@ async def resolve_active_playlist(screen: dict) -> dict | None:
     return None
 
 
+async def ensure_default_location(org_id: str) -> dict:
+    """Most restaurants have one address; never make them create it by hand."""
+    loc = await db.locations.find_one({"org_id": org_id}, {"_id": 0})
+    if loc:
+        return loc
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1})
+    loc = {
+        "id": new_id(),
+        "org_id": org_id,
+        "name": (org or {}).get("name") or "Main Location",
+        "address": None,
+        "city": None,
+        "state": None,
+        "timezone": "America/Los_Angeles",
+        "created_at": now_iso(),
+    }
+    await db.locations.insert_one(dict(loc))
+    return loc
+
+
+async def ensure_screen_playlist(screen: dict, user: dict) -> dict:
+    """Every screen owns a playlist so users can just drop files onto the screen."""
+    if screen.get("playlist_id"):
+        pl = await db.playlists.find_one({"id": screen["playlist_id"], "org_id": user["org_id"]}, {"_id": 0})
+        if pl:
+            return pl
+    pl = {
+        "id": new_id(),
+        "org_id": user["org_id"],
+        "name": f"{screen['name']} content",
+        "location_id": screen.get("location_id"),
+        "items": [],
+        "version": 1,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.playlists.insert_one(dict(pl))
+    await db.screens.update_one({"id": screen["id"]}, {"$set": {"playlist_id": pl["id"]}})
+    return pl
+
+
+
+async def normalize_items(org_id: str, items: list[dict]) -> list[dict]:
+    """Videos always play their full length, so their stored duration is pinned to 0."""
+    media = await db.media.find(
+        {"org_id": org_id, "id": {"$in": [i["media_id"] for i in items]}}, {"_id": 0, "id": 1, "kind": 1}
+    ).to_list(2000)
+    kinds = {m["id"]: m["kind"] for m in media}
+    return [
+        {**i, "duration": 0 if kinds.get(i["media_id"]) == "video" else max(1, int(i.get("duration") or 10))}
+        for i in items
+    ]
+
+
 # ---------------- screens ----------------
 @router.get("/screens")
 async def list_screens(user: dict = Depends(require_org_user)):
@@ -76,16 +133,29 @@ async def list_screens(user: dict = Depends(require_org_user)):
     playlists = {p["id"]: p for p in await db.playlists.find({"org_id": org_id}, {"_id": 0}).to_list(500)}
     devices = await db.devices.find({"org_id": org_id}, {"_id": 0, "device_token": 0}).to_list(500)
     dev_by_screen = {d["screen_id"]: d for d in devices if d.get("screen_id")}
+    thumb_ids = [
+        (playlists.get(s.get("playlist_id")) or {}).get("items", [{}])[0].get("media_id")
+        for s in screens
+        if (playlists.get(s.get("playlist_id")) or {}).get("items")
+    ]
+    thumb_kinds = {
+        m["id"]: m["kind"]
+        for m in await db.media.find({"id": {"$in": thumb_ids}}, {"_id": 0, "id": 1, "kind": 1}).to_list(500)
+    }
     out = []
     for s in screens:
         dev = dev_by_screen.get(s["id"])
         pl = playlists.get(s.get("playlist_id"))
+        thumb = (pl.get("items") or [{}])[0].get("media_id") if pl and pl.get("items") else None
         out.append(
             {
                 **s,
                 "location_name": locations.get(s.get("location_id")),
                 "playlist_name": pl["name"] if pl else None,
                 "playlist_version": pl.get("version") if pl else None,
+                "item_count": len(pl.get("items", [])) if pl else 0,
+                "thumbnail_media_id": thumb,
+                "thumbnail_kind": thumb_kinds.get(thumb),
                 "device": dev,
                 "online": is_online(dev.get("last_seen")) if dev else False,
                 "last_seen": dev.get("last_seen") if dev else None,
@@ -96,11 +166,17 @@ async def list_screens(user: dict = Depends(require_org_user)):
 
 @router.post("/screens", status_code=201)
 async def create_screen(payload: ScreenIn, user: dict = Depends(require_org_user)):
-    loc = await db.locations.find_one({"id": payload.location_id, "org_id": user["org_id"]})
-    if not loc:
-        raise HTTPException(status_code=404, detail="Location not found")
-    screen = {"id": new_id(), "org_id": user["org_id"], **payload.model_dump(), "created_at": now_iso()}
+    data = payload.model_dump()
+    if data.get("location_id"):
+        loc = await db.locations.find_one({"id": data["location_id"], "org_id": user["org_id"]})
+        if not loc:
+            raise HTTPException(status_code=404, detail="Location not found")
+    else:
+        data["location_id"] = (await ensure_default_location(user["org_id"]))["id"]
+    screen = {"id": new_id(), "org_id": user["org_id"], **data, "created_at": now_iso()}
     await db.screens.insert_one(dict(screen))
+    playlist = await ensure_screen_playlist(screen, user)
+    screen["playlist_id"] = playlist["id"]
     await audit(user["org_id"], user["id"], "screen.create", "screen", screen["id"])
     return screen
 
@@ -121,6 +197,53 @@ async def get_screen(screen_id: str, user: dict = Depends(require_org_user)):
         "online": is_online(device.get("last_seen")) if device else False,
         "last_seen": device.get("last_seen") if device else None,
     }
+
+
+@router.post("/screens/{screen_id}/content", status_code=201)
+async def add_screen_content(
+    screen_id: str,
+    files: List[UploadFile] = File(...),
+    user: dict = Depends(require_org_user),
+):
+    """Upload files straight onto a screen: stores them and appends to that screen's loop."""
+    screen = await db.screens.find_one({"id": screen_id, "org_id": user["org_id"]}, {"_id": 0})
+    if not screen:
+        raise HTTPException(status_code=404, detail="Screen not found")
+    playlist = await ensure_screen_playlist(screen, user)
+    items = list(playlist.get("items", []))
+    added, errors = 0, []
+    for file in files:
+        try:
+            doc = await save_upload_file(file, user["org_id"], user["id"], screen.get("location_id"))
+        except HTTPException as exc:
+            errors.append(f"{file.filename}: {exc.detail}")
+            continue
+        items.append(
+            {"media_id": doc["id"], "duration": 0 if doc["kind"] == "video" else screen.get("default_image_duration", 10)}
+        )
+        added += 1
+    if added:
+        await db.playlists.update_one(
+            {"id": playlist["id"]}, {"$set": {"items": items, "updated_at": now_iso()}, "$inc": {"version": 1}}
+        )
+    fresh = await db.playlists.find_one({"id": playlist["id"]}, {"_id": 0})
+    return {"added": added, "errors": errors, "playlist": await hydrate_playlist(user["org_id"], fresh)}
+
+
+@router.put("/screens/{screen_id}/content")
+async def set_screen_content(screen_id: str, payload: ScreenContentIn, user: dict = Depends(require_org_user)):
+    """Reorder, retime or remove what a screen is playing, without touching playlist screens."""
+    screen = await db.screens.find_one({"id": screen_id, "org_id": user["org_id"]}, {"_id": 0})
+    if not screen:
+        raise HTTPException(status_code=404, detail="Screen not found")
+    playlist = await ensure_screen_playlist(screen, user)
+    items = await normalize_items(user["org_id"], [i.model_dump() for i in payload.items])
+    await db.playlists.update_one(
+        {"id": playlist["id"]},
+        {"$set": {"items": items, "updated_at": now_iso()}, "$inc": {"version": 1}},
+    )
+    fresh = await db.playlists.find_one({"id": playlist["id"]}, {"_id": 0})
+    return await hydrate_playlist(user["org_id"], fresh)
 
 
 @router.patch("/screens/{screen_id}")
@@ -214,7 +337,7 @@ async def update_playlist(playlist_id: str, payload: PlaylistUpdate, user: dict 
         missing = [m for m in media_ids if m not in valid]
         if missing:
             raise HTTPException(status_code=400, detail="One or more media files no longer exist")
-        updates["items"] = [i.model_dump() for i in payload.items]
+        updates["items"] = await normalize_items(user["org_id"], [i.model_dump() for i in payload.items])
     updates["updated_at"] = now_iso()
     ops = {"$set": updates}
     if content_changed:

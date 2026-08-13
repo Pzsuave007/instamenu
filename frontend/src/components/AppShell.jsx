@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   ListVideo,
   LogOut,
-  MapPin,
   Menu,
   Monitor,
   Settings,
@@ -20,13 +19,12 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 
 const restaurantNav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/locations", label: "Locations", icon: MapPin },
+  { to: "/dashboard", label: "My TVs", icon: LayoutDashboard },
   { to: "/screens", label: "Screens", icon: Monitor },
-  { to: "/playlists", label: "Playlists", icon: ListVideo },
   { to: "/media", label: "Media Library", icon: Image },
-  { to: "/devices", label: "Devices", icon: Tv },
-  { to: "/account", label: "Account", icon: Settings },
+  { to: "/devices", label: "Fire TV Devices", icon: Tv },
+  { to: "/playlists", label: "Playlists", icon: ListVideo },
+  { to: "/account", label: "Settings", icon: Settings },
 ];
 
 const adminNav = [

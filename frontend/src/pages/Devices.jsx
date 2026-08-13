@@ -35,8 +35,14 @@ export default function Devices() {
   const pair = async () => {
     setPairing(true);
     try {
-      await api.post("/devices/pair", form);
-      toast.success("Device paired. Your television will start playing shortly.");
+      const screen = screens.find((s) => s.id === form.screen_id);
+      await api.post("/devices/pair", {
+        code: form.code,
+        screen_id: form.screen_id,
+        name: form.name || `${screen?.name || "Fire"} TV`,
+        ...(screen?.location_id ? { location_id: screen.location_id } : {}),
+      });
+      toast.success("Paired. Your television will start playing shortly.");
       setOpen(false);
       setForm({ code: "", location_id: "", screen_id: "", name: "" });
       load();
@@ -80,7 +86,7 @@ export default function Devices() {
     }
   };
 
-  const screensForLocation = screens.filter((s) => !form.location_id || s.location_id === form.location_id);
+  const screensForLocation = screens;
 
   return (
     <AppShell>
@@ -192,45 +198,30 @@ export default function Devices() {
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                 placeholder="482917"
-                className="h-14 text-center font-display text-2xl tracking-[0.4em]"
+                className="h-16 text-center font-display text-3xl tracking-[0.4em]"
                 data-testid="pair-code-input"
               />
             </div>
             <div className="space-y-2">
-              <Label>Location</Label>
-              <Select
-                value={form.location_id}
-                onValueChange={(v) => setForm({ ...form, location_id: v, screen_id: "" })}
-              >
-                <SelectTrigger data-testid="pair-location-select">
-                  <SelectValue placeholder="Choose a location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Screen</Label>
+              <Label>Which screen should it show?</Label>
               <Select value={form.screen_id} onValueChange={(v) => setForm({ ...form, screen_id: v })}>
                 <SelectTrigger data-testid="pair-screen-select">
                   <SelectValue placeholder="Choose a screen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {screensForLocation.map((s) => (
+                  {screens.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
+                      {locations.length > 1 && s.location_name ? ` · ${s.location_name}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Device name</Label>
+              <Label>
+                Device name <span className="font-normal text-zinc-400">(optional)</span>
+              </Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -246,10 +237,10 @@ export default function Devices() {
             <Button
               className="rounded-full"
               onClick={pair}
-              disabled={pairing || form.code.length !== 6 || !form.screen_id || !form.location_id || !form.name}
+              disabled={pairing || form.code.length !== 6 || !form.screen_id}
               data-testid="confirm-pair-button"
             >
-              <Monitor className="mr-2 h-4 w-4" /> Pair device
+              <Monitor className="mr-2 h-4 w-4" /> Connect this TV
             </Button>
           </DialogFooter>
         </DialogContent>

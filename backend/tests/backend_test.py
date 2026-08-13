@@ -503,6 +503,143 @@ class TestDeviceAPI:
         requests.delete(f"{API}/media/{media_id}?force=true", headers=bearer(owner_token), timeout=10)
 
 
+# ---------------- 7b) Simplified screen flow (v2) ----------------
+class TestSimplifiedScreenFlow:
+    def test_create_screen_with_name_only(self, owner_token):
+        name = f"TEST_Simple_{uuid.uuid4().hex[:6]}"
+        r = requests.post(f"{API}/screens", json={"name": name}, headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 201, r.text
+        s = r.json()
+        assert s["name"] == name
+        assert s.get("location_id"), "expected auto location_id"
+        assert s.get("playlist_id"), "expected auto playlist_id"
+        # Verify GET returns hydrated playlist
+        rg = requests.get(f"{API}/screens/{s['id']}", headers=bearer(owner_token), timeout=10)
+        assert rg.status_code == 200
+        pl = rg.json().get("playlist")
+        assert pl is not None
+        assert pl["version"] == 1
+        # Cleanup
+        requests.delete(f"{API}/screens/{s['id']}", headers=bearer(owner_token), timeout=10)
+        requests.delete(f"{API}/playlists/{s['playlist_id']}?force=true", headers=bearer(owner_token), timeout=10)
+
+    def test_upload_content_onto_screen_and_reorder(self, owner_token):
+        # Create screen
+        name = f"TEST_Content_{uuid.uuid4().hex[:6]}"
+        r = requests.post(f"{API}/screens", json={"name": name}, headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 201, r.text
+        screen = r.json()
+        sid = screen["id"]
+        pid = screen["playlist_id"]
+
+        # POST content with 2 valid + 1 bad
+        files = [
+            ("files", (f"TEST_a_{uuid.uuid4().hex[:5]}.png", make_png(10, 10), "image/png")),
+            ("files", (f"TEST_b_{uuid.uuid4().hex[:5]}.png", make_png(12, 8), "image/png")),
+            ("files", ("bad.txt", b"nope", "text/plain")),
+        ]
+        r = requests.post(f"{API}/screens/{sid}/content", headers=bearer(owner_token), files=files, timeout=30)
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["added"] == 2
+        assert len(body["errors"]) >= 1
+        assert body["playlist"]["version"] >= 2
+        items = body["playlist"]["items"]
+        assert len(items) == 2
+        media_ids = [it["media_id"] for it in items]
+
+        # Screen list shows item_count and thumbnail
+        r = requests.get(f"{API}/screens", headers=bearer(owner_token), timeout=10)
+        row = next(s for s in r.json() if s["id"] == sid)
+        assert row["item_count"] == 2
+        assert row["thumbnail_media_id"] == media_ids[0]
+        assert row.get("thumbnail_kind") in ("image", None) or row["thumbnail_kind"] == "image"
+
+        # PUT reorder + retime
+        new_items = [
+            {"media_id": media_ids[1], "duration": 25},
+            {"media_id": media_ids[0], "duration": 7},
+        ]
+        r = requests.put(f"{API}/screens/{sid}/content",
+                         json={"items": new_items}, headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 200
+        updated = r.json()
+        assert updated["version"] >= 3
+        assert updated["items"][0]["media_id"] == media_ids[1]
+        assert updated["items"][0]["duration"] == 25
+
+        # Dashboard reflects thumbnail_media_id + thumbnail_kind
+        r = requests.get(f"{API}/dashboard", headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 200
+        dash_screen = next((s for s in r.json()["screens"] if s["id"] == sid), None)
+        assert dash_screen is not None
+        assert "thumbnail_media_id" in dash_screen
+        assert "thumbnail_kind" in dash_screen
+
+        # Cleanup
+        requests.delete(f"{API}/screens/{sid}", headers=bearer(owner_token), timeout=10)
+        requests.delete(f"{API}/playlists/{pid}?force=true", headers=bearer(owner_token), timeout=10)
+        for mid in media_ids:
+            requests.delete(f"{API}/media/{mid}?force=true", headers=bearer(owner_token), timeout=10)
+
+    def test_pair_with_code_and_screen_only(self, owner_token):
+        # Create screen (name only)
+        sname = f"TEST_PairS_{uuid.uuid4().hex[:6]}"
+        r = requests.post(f"{API}/screens", json={"name": sname}, headers=bearer(owner_token), timeout=10)
+        sid = r.json()["id"]
+        pid = r.json()["playlist_id"]
+
+        hardware_id = f"TEST_hw_{uuid.uuid4().hex[:8]}"
+        r = requests.post(f"{API}/device/pair/request",
+                          json={"hardware_id": hardware_id, "app_version": "1.0.0"}, timeout=10)
+        code = r.json()["code"]
+
+        # Pair with ONLY code + screen_id (no location, no name)
+        r = requests.post(f"{API}/devices/pair",
+                          json={"code": code, "screen_id": sid},
+                          headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 201, r.text
+        dev = r.json()
+        assert dev["screen_id"] == sid
+        assert dev["location_id"], "expected location auto-filled from screen"
+        # default_name = screen name (with 'tv' or ' TV' appended)
+        assert sname in dev["name"] or dev["name"].endswith("TV")
+
+        # Cleanup
+        requests.delete(f"{API}/devices/{dev['id']}", headers=bearer(owner_token), timeout=10)
+        requests.delete(f"{API}/screens/{sid}", headers=bearer(owner_token), timeout=10)
+        requests.delete(f"{API}/playlists/{pid}?force=true", headers=bearer(owner_token), timeout=10)
+
+    def test_cross_org_screen_content_forbidden(self, admin_token, owner_token):
+        # Owner's screen
+        r = requests.get(f"{API}/screens", headers=bearer(owner_token), timeout=10)
+        owner_sid = r.json()[0]["id"]
+        # Create other org + user
+        name = f"TEST_XOrg_{uuid.uuid4().hex[:5]}"
+        r = requests.post(f"{API}/admin/organizations",
+                          json={"name": name, "plan": "trial"},
+                          headers=bearer(admin_token), timeout=10)
+        other_org_id = r.json()["id"]
+        email = f"TEST_xo_{uuid.uuid4().hex[:5]}@x.com"
+        requests.post(f"{API}/admin/users",
+                      json={"email": email, "password": "Pwd123456!", "name": "X",
+                            "role": "owner", "org_id": other_org_id},
+                      headers=bearer(admin_token), timeout=10)
+        other_token = login(email, "Pwd123456!").json()["token"]
+        # POST content to foreign screen -> 404
+        files = [("files", ("x.png", make_png(4, 4), "image/png"))]
+        r = requests.post(f"{API}/screens/{owner_sid}/content",
+                          headers=bearer(other_token), files=files, timeout=15)
+        assert r.status_code == 404
+        # PUT content to foreign screen -> 404
+        r = requests.put(f"{API}/screens/{owner_sid}/content",
+                         json={"items": []}, headers=bearer(other_token), timeout=10)
+        assert r.status_code == 404
+        # Cleanup
+        requests.delete(f"{API}/admin/organizations/{other_org_id}",
+                        headers=bearer(admin_token), timeout=15)
+
+
 # ---------------- 8) Tenant isolation & role guards ----------------
 class TestIsolation:
     def test_owner_forbidden_from_admin_endpoints(self, owner_token):

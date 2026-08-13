@@ -70,7 +70,7 @@ class LocationIn(Base):
 # ---------- screens ----------
 class ScreenIn(Base):
     name: str = Field(min_length=1, max_length=120)
-    location_id: str
+    location_id: Optional[str] = None
     orientation: str = "landscape"
     resolution: str = "1920x1080"
     image_fit: str = "fit"  # fit | fill | stretch
@@ -107,6 +107,10 @@ class PlaylistUpdate(Base):
 
 
 # ---------- schedules (data model ready; UI minimal) ----------
+class ScreenContentIn(Base):
+    items: List[PlaylistItemIn] = []
+
+
 class ScheduleIn(Base):
     screen_id: str
     playlist_id: str
@@ -133,9 +137,9 @@ class PairRequestIn(Base):
 
 class PairConfirmIn(Base):
     code: str = Field(min_length=6, max_length=6)
-    location_id: str
+    location_id: Optional[str] = None
     screen_id: str
-    name: str = Field(min_length=1, max_length=120)
+    name: Optional[str] = None
 
 
 class PairClaimIn(Base):

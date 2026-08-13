@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2, UserPlus } from "lucide-react";
+import { MapPin, Trash2, UserPlus } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,33 @@ export default function Account() {
   const [password, setPassword] = useState("");
   const [open, setOpen] = useState(false);
   const [invite, setInvite] = useState({ name: "", email: "", password: "", role: "manager" });
+  const [locations, setLocations] = useState([]);
+  const [locOpen, setLocOpen] = useState(false);
+  const [locName, setLocName] = useState("");
+
+  const loadLocations = () => api.get("/locations").then((r) => setLocations(r.data)).catch(() => {});
+
+  const addLocation = async () => {
+    try {
+      await api.post("/locations", { name: locName });
+      toast.success("Location added");
+      setLocOpen(false);
+      setLocName("");
+      loadLocations();
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
+
+  const removeLocation = async (loc) => {
+    if (!window.confirm(`Delete "${loc.name}"?`)) return;
+    try {
+      await api.delete(`/locations/${loc.id}`);
+      loadLocations();
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
 
   const loadTeam = () => api.get("/team").then((r) => setTeam(r.data)).catch(() => {});
 
@@ -26,6 +53,7 @@ export default function Account() {
       setOrg({ name: r.data.name || "", contact_email: r.data.contact_email || "", phone: r.data.phone || "" })
     );
     loadTeam();
+    loadLocations();
   }, []);
 
   const saveOrg = async () => {
@@ -72,7 +100,7 @@ export default function Account() {
 
   return (
     <AppShell>
-      <PageHeader title="Account" subtitle="Restaurant details, your login and your team." />
+      <PageHeader title="Settings" subtitle="Your restaurant details, login, locations and team." />
 
       <div className="grid gap-8 lg:grid-cols-2">
         <Card className="border-zinc-200 p-6 shadow-sm">
@@ -135,6 +163,45 @@ export default function Account() {
 
         <Card className="border-zinc-200 p-6 shadow-sm lg:col-span-2">
           <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Locations</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Only needed if you run more than one address. We created one for you automatically.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setLocOpen(true)}
+              data-testid="add-location-button"
+            >
+              <MapPin className="mr-2 h-4 w-4" /> Add location
+            </Button>
+          </div>
+          <div className="divide-y divide-zinc-100" data-testid="locations-list">
+            {locations.map((loc) => (
+              <div key={loc.id} className="flex items-center justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{loc.name}</p>
+                  <p className="truncate text-xs text-zinc-500">
+                    {[loc.address, loc.city, loc.state].filter(Boolean).join(", ") || "No address"} · {loc.screens}{" "}
+                    screens
+                  </p>
+                </div>
+                <button
+                  className="text-zinc-400 hover:text-red-500"
+                  onClick={() => removeLocation(loc)}
+                  data-testid={`delete-location-${loc.id}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="border-zinc-200 p-6 shadow-sm lg:col-span-2">
+          <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Team</h2>
             <Button variant="outline" className="rounded-full" onClick={() => setOpen(true)} data-testid="add-team-button">
               <UserPlus className="mr-2 h-4 w-4" /> Add member
@@ -165,6 +232,32 @@ export default function Account() {
           </div>
         </Card>
       </div>
+
+      <Dialog open={locOpen} onOpenChange={setLocOpen}>
+        <DialogContent data-testid="location-dialog">
+          <DialogHeader>
+            <DialogTitle>Add a location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Location name</Label>
+            <Input
+              value={locName}
+              onChange={(e) => setLocName(e.target.value)}
+              placeholder="Beaverton"
+              onKeyDown={(e) => e.key === "Enter" && locName && addLocation()}
+              data-testid="location-name-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setLocOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="rounded-full" onClick={addLocation} disabled={!locName} data-testid="save-location">
+              Add location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent data-testid="team-dialog">

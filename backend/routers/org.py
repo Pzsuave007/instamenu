@@ -33,11 +33,17 @@ async def dashboard(user: dict = Depends(require_org_user)):
     screen_rows = []
     for s in screens:
         dev = dev_by_screen.get(s["id"])
+        pl = await db.playlists.find_one({"id": s.get("playlist_id")}, {"_id": 0, "items": 1, "name": 1}) if s.get("playlist_id") else None
+        thumb = (pl.get("items") or [{}])[0].get("media_id") if pl and pl.get("items") else None
+        thumb_media = await db.media.find_one({"id": thumb}, {"_id": 0, "kind": 1}) if thumb else None
         screen_rows.append(
             {
                 **s,
                 "location_name": loc_names.get(s.get("location_id")),
                 "playlist_name": pl_names.get(s.get("playlist_id")),
+                "item_count": len(pl.get("items", [])) if pl else 0,
+                "thumbnail_media_id": thumb,
+                "thumbnail_kind": (thumb_media or {}).get("kind"),
                 "device_name": dev["name"] if dev else None,
                 "last_seen": dev.get("last_seen") if dev else None,
                 "online": is_online(dev.get("last_seen")) if dev else False,
@@ -88,7 +94,6 @@ async def create_location(payload: LocationIn, user: dict = Depends(require_org_
     await db.locations.insert_one(dict(loc))
     await audit(user["org_id"], user["id"], "location.create", "location", loc["id"])
     return {**loc, "screens": 0, "devices": 0}
-
 
 @router.patch("/locations/{location_id}")
 async def update_location(location_id: str, payload: LocationIn, user: dict = Depends(require_org_user)):

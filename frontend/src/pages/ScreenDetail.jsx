@@ -1,56 +1,87 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Tv } from "lucide-react";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import { ArrowLeft, Film, GripVertical, Loader2, Settings2, Trash2, Tv, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot } from "@/components/StatusDot";
 import { TvPreview } from "@/components/TvPreview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, apiError, timeAgo } from "@/lib/apiClient";
+import { api, apiError, mediaUrl } from "@/lib/apiClient";
 import { toast } from "sonner";
-
-const NONE = "__none__";
 
 export default function ScreenDetail() {
   const { screenId } = useParams();
   const [screen, setScreen] = useState(null);
-  const [playlists, setPlaylists] = useState([]);
+  const [items, setItems] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const fileRef = useRef(null);
 
-  const load = useCallback(() => {
-    api
-      .get(`/screens/${screenId}`)
-      .then((r) => setScreen(r.data))
-      .catch((e) => toast.error(apiError(e)));
+  const applyPlaylist = (playlist) =>
+    setItems((playlist?.items || []).map((i) => ({ media_id: i.media_id, duration: i.duration, media: i.media })));
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/screens/${screenId}`);
+      setScreen(data);
+      applyPlaylist(data.playlist);
+    } catch (e) {
+      toast.error(apiError(e));
+    }
   }, [screenId]);
 
   useEffect(() => {
     load();
-    api.get("/playlists").then((r) => setPlaylists(r.data));
     api.get("/devices").then((r) => setDevices(r.data));
   }, [load]);
 
-  const assignPlaylist = async (value) => {
+  const upload = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setUploading(true);
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
     try {
-      await api.patch(`/screens/${screenId}`, { playlist_id: value === NONE ? null : value });
-      toast.success("Playlist assigned — televisions will update automatically");
+      const { data } = await api.post(`/screens/${screenId}/content`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      applyPlaylist(data.playlist);
+      if (data.added) toast.success(`${data.added} file${data.added > 1 ? "s" : ""} added to this TV`);
+      data.errors?.forEach((err) => toast.error(err));
       load();
     } catch (e) {
       toast.error(apiError(e));
+    } finally {
+      setUploading(false);
     }
   };
 
-  const assignDevice = async (deviceId) => {
+  const persist = async (nextItems, message) => {
+    setItems(nextItems);
     try {
-      await api.patch(`/devices/${deviceId}`, { screen_id: screenId });
-      toast.success("Device assigned to this screen");
-      load();
-      api.get("/devices").then((r) => setDevices(r.data));
+      const { data } = await api.put(`/screens/${screenId}/content`, {
+        items: nextItems.map((i) => ({ media_id: i.media_id, duration: i.duration || 10 })),
+      });
+      applyPlaylist(data);
+      if (message) toast.success(message);
     } catch (e) {
       toast.error(apiError(e));
+      load();
     }
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination || result.destination.index === result.source.index) return;
+    const next = [...items];
+    const [moved] = next.splice(result.source.index, 1);
+    next.splice(result.destination.index, 0, moved);
+    persist(next, "New order saved — TVs will update automatically");
   };
 
   const updateSetting = async (patch) => {
@@ -62,144 +93,269 @@ export default function ScreenDetail() {
     }
   };
 
+  const assignDevice = async (deviceId) => {
+    try {
+      await api.patch(`/devices/${deviceId}`, { screen_id: screenId });
+      toast.success("Fire TV assigned to this screen");
+      load();
+      api.get("/devices").then((r) => setDevices(r.data));
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
+
   if (!screen) {
     return (
       <AppShell>
-        <p className="text-sm text-zinc-500">Loading screen…</p>
+        <p className="text-sm text-zinc-500">Loading…</p>
       </AppShell>
     );
   }
 
+  const unassigned = devices.filter((d) => !d.screen_id);
+
   return (
     <AppShell>
       <Link to="/screens" className="mb-6 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900">
-        <ArrowLeft className="h-4 w-4" /> Back to screens
+        <ArrowLeft className="h-4 w-4" /> All screens
       </Link>
 
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl" data-testid="screen-detail-name">
             {screen.name}
           </h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            {screen.location_name} · {screen.resolution} · {screen.orientation}
+          <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+            <StatusDot online={screen.online} />
+            <span>·</span>
+            <span>{screen.device ? screen.device.name : "No Fire TV paired yet"}</span>
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <StatusDot online={screen.online} />
-          <span className="text-sm text-zinc-500">Last seen {timeAgo(screen.last_seen)}</span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".jpg,.jpeg,.png,.webp,.mp4"
+            className="hidden"
+            onChange={(e) => upload(e.target.files)}
+            data-testid="screen-file-input"
+          />
+          <Button
+            className="rounded-full px-5"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            data-testid="screen-upload-button"
+          >
+            {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            {uploading ? "Uploading…" : "Add videos or images"}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full"
+            onClick={() => setShowSettings((s) => !s)}
+            data-testid="screen-settings-toggle"
+          >
+            <Settings2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.35fr,1fr]">
+      <div className="grid gap-8 lg:grid-cols-[1fr,1fr]">
         <Card className="border-zinc-200 p-6 shadow-sm">
-          <h2 className="mb-5 text-lg font-semibold">Live preview</h2>
-          <TvPreview
-            items={screen.playlist?.items || []}
-            imageFit={screen.image_fit}
-            playlistName={screen.playlist?.name}
-            testId="screen-detail-preview"
-          />
+          <h2 className="mb-1 text-lg font-semibold">What this TV is playing</h2>
+          <p className="mb-5 text-sm text-zinc-500">
+            {items.length
+              ? "Drag to change the order. Changes reach the TV within a minute."
+              : "Drop your files below and they go straight on this TV."}
+          </p>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              upload(e.dataTransfer.files);
+            }}
+            onClick={() => fileRef.current?.click()}
+            className={`mb-6 cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center duration-200 ${
+              dragOver ? "border-orange-400 bg-orange-50" : "border-zinc-300 hover:border-orange-300"
+            }`}
+            data-testid="screen-dropzone"
+          >
+            <Upload className="mx-auto mb-3 h-6 w-6 text-orange-500" />
+            <p className="text-sm font-medium text-zinc-800">Drag videos or images here</p>
+            <p className="mt-1 text-xs text-zinc-500">Or click to browse · JPG, PNG, WEBP, MP4</p>
+          </div>
+
+          {items.length > 0 ? (
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId="screen-content">
+                {(dropProvided) => (
+                  <div
+                    ref={dropProvided.innerRef}
+                    {...dropProvided.droppableProps}
+                    className="space-y-3"
+                    data-testid="screen-content-items"
+                  >
+                    {items.map((item, index) => (
+                      <Draggable key={`${item.media_id}-${index}`} draggableId={`${item.media_id}-${index}`} index={index}>
+                        {(dragProvided, snapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            className={`flex items-center gap-4 rounded-xl border bg-white p-3 ${
+                              snapshot.isDragging ? "border-orange-300 shadow-lg" : "border-zinc-200"
+                            }`}
+                            data-testid={`screen-content-item-${index}`}
+                          >
+                            <span
+                              {...dragProvided.dragHandleProps}
+                              className="cursor-grab text-zinc-400 hover:text-zinc-700"
+                              data-testid={`screen-drag-handle-${index}`}
+                            >
+                              <GripVertical className="h-5 w-5" />
+                            </span>
+                            <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                              {item.media?.kind === "video" ? (
+                                <div className="flex h-full w-full items-center justify-center text-white/80">
+                                  <Film className="h-5 w-5" />
+                                </div>
+                              ) : (
+                                <img src={mediaUrl(item.media_id)} alt="" className="h-full w-full object-cover" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{item.media?.name}</p>
+                              <p className="text-xs text-zinc-500">
+                                {item.media?.kind === "video" ? "Plays the whole video" : "Image"}
+                              </p>
+                            </div>
+                            {item.media?.kind === "image" ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={item.duration}
+                                  onChange={(e) =>
+                                    setItems((prev) =>
+                                      prev.map((it, i) =>
+                                        i === index ? { ...it, duration: Number(e.target.value) || 0 } : it
+                                      )
+                                    )
+                                  }
+                                  onBlur={() => persist(items)}
+                                  className="h-9 w-20"
+                                  data-testid={`screen-item-duration-${index}`}
+                                />
+                                <span className="text-xs text-zinc-500">sec</span>
+                              </div>
+                            ) : null}
+                            <button
+                              className="text-zinc-400 duration-200 hover:text-red-500"
+                              onClick={() => persist(items.filter((_, i) => i !== index), "Removed from this TV")}
+                              data-testid={`screen-remove-item-${index}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {dropProvided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          ) : null}
         </Card>
 
         <div className="space-y-6">
           <Card className="border-zinc-200 p-6 shadow-sm">
-            <h2 className="mb-5 text-lg font-semibold">Content</h2>
-            <div className="space-y-2">
-              <Label>Assigned playlist</Label>
-              <Select value={screen.playlist_id || NONE} onValueChange={assignPlaylist}>
-                <SelectTrigger data-testid="assign-playlist-select">
-                  <SelectValue placeholder="Choose a playlist" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>No playlist</SelectItem>
-                  {playlists.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.item_count} items)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {screen.playlist ? (
-              <p className="mt-4 text-xs text-zinc-500" data-testid="screen-playlist-version">
-                Playlist version {screen.playlist.version} · {screen.playlist.item_count} items ·{" "}
-                {screen.playlist.total_duration}s loop
-              </p>
-            ) : null}
+            <h2 className="mb-1 text-lg font-semibold">How it looks on the TV</h2>
+            <p className="mb-5 text-sm text-zinc-500">Exactly what the television plays, in order.</p>
+            <TvPreview
+              items={items}
+              imageFit={screen.image_fit}
+              playlistName={`${items.length} item${items.length === 1 ? "" : "s"}`}
+              testId="screen-detail-preview"
+            />
           </Card>
 
-          <Card className="border-zinc-200 p-6 shadow-sm">
-            <h2 className="mb-5 text-lg font-semibold">Display settings</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Image fit</Label>
-                <Select value={screen.image_fit} onValueChange={(v) => updateSetting({ image_fit: v })}>
-                  <SelectTrigger data-testid="screen-detail-fit-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fit">Fit</SelectItem>
-                    <SelectItem value="fill">Fill</SelectItem>
-                    <SelectItem value="stretch">Stretch</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Orientation</Label>
-                <Select value={screen.orientation} onValueChange={(v) => updateSetting({ orientation: v })}>
-                  <SelectTrigger data-testid="screen-detail-orientation-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="landscape">Landscape</SelectItem>
-                    <SelectItem value="portrait">Portrait</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="border-zinc-200 p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold">Paired device</h2>
-            {screen.device ? (
-              <div className="flex items-center gap-3" data-testid="screen-paired-device">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
-                  <Tv className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-medium">{screen.device.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {screen.device.model || "Fire TV"} · app {screen.device.app_version || "—"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="mb-4 text-sm text-zinc-500">No device is showing this screen yet.</p>
-                {devices.filter((d) => !d.screen_id).length > 0 ? (
+          {!screen.device ? (
+            <Card className="border-zinc-200 p-6 shadow-sm">
+              <h2 className="mb-2 text-lg font-semibold">Connect a television</h2>
+              {unassigned.length ? (
+                <>
+                  <p className="mb-4 text-sm text-zinc-500">Pick a Fire TV you already paired.</p>
                   <Select onValueChange={assignDevice}>
                     <SelectTrigger data-testid="assign-device-select">
-                      <SelectValue placeholder="Assign an unassigned device" />
+                      <SelectValue placeholder="Choose a Fire TV" />
                     </SelectTrigger>
                     <SelectContent>
-                      {devices
-                        .filter((d) => !d.screen_id)
-                        .map((d) => (
-                          <SelectItem key={d.id} value={d.id}>
-                            {d.name}
-                          </SelectItem>
-                        ))}
+                      {unassigned.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <Button asChild variant="outline" className="w-full rounded-full">
-                    <Link to="/devices">Pair a Fire TV device</Link>
+                </>
+              ) : (
+                <>
+                  <p className="mb-4 text-sm text-zinc-500">
+                    Open the InstaMenu app on your Fire TV and enter the code it shows.
+                  </p>
+                  <Button asChild className="w-full rounded-full" data-testid="screen-pair-cta">
+                    <Link to="/devices">
+                      <Tv className="mr-2 h-4 w-4" /> Pair a Fire TV
+                    </Link>
                   </Button>
-                )}
-              </>
-            )}
-          </Card>
+                </>
+              )}
+            </Card>
+          ) : null}
+
+          {showSettings ? (
+            <Card className="border-zinc-200 p-6 shadow-sm" data-testid="screen-advanced-settings">
+              <h2 className="mb-5 text-lg font-semibold">Advanced</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Image fit</Label>
+                  <Select value={screen.image_fit} onValueChange={(v) => updateSetting({ image_fit: v })}>
+                    <SelectTrigger data-testid="screen-detail-fit-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fill">Fill the screen</SelectItem>
+                      <SelectItem value="fit">Fit inside (black bars)</SelectItem>
+                      <SelectItem value="stretch">Stretch</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Orientation</Label>
+                  <Select value={screen.orientation} onValueChange={(v) => updateSetting({ orientation: v })}>
+                    <SelectTrigger data-testid="screen-detail-orientation-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="landscape">Landscape</SelectItem>
+                      <SelectItem value="portrait">Portrait</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="mt-5 text-xs text-zinc-400" data-testid="screen-playlist-version">
+                Playing playlist "{screen.playlist?.name}" · version {screen.playlist?.version ?? 1}
+              </p>
+            </Card>
+          ) : null}
         </div>
       </div>
     </AppShell>

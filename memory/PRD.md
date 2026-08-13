@@ -14,6 +14,13 @@ ship without new APK releases. Multi-tenant, secure, portable, owner-maintainabl
 - Fire TV player: build after the web API is verified.
 - Design: delegated to the design agent (orange/zinc Swiss-minimal SaaS, Outfit + Inter).
 
+## Follow-up direction (June 2026, after first review)
+User loved the look but found the flow too complicated: *"I need this to be easy to use, easy to
+upload videos and easy to assign the videos to the screens and be able to see how they are going to look."*
+The product was therefore reorganised around a single idea: **the screen page is the content hub.**
+Playlists, locations and the media library still exist underneath, but a restaurant owner never has
+to touch them to get a video on a TV.
+
 ## Architecture
 - Backend: FastAPI, modular. `core/` (db, security, storage, deps, models) + `routers/`
   (auth, admin, org, media, screens, devices, device_api). All routes under `/api`.
@@ -24,8 +31,12 @@ ship without new APK releases. Multi-tenant, secure, portable, owner-maintainabl
 - Storage: `core/storage.py` is the only storage-aware module — swap it to plain S3 to migrate hosts.
 - Media is never served from storage directly; it goes through `/api/media/{id}/file`
   authenticated by user JWT (`?auth=`) or persistent device token (`?device_token=`).
+  Device manifest URLs are built from `PUBLIC_BASE_URL` so they are reachable off-cluster.
 - Playlist versioning: any change to playlist items `$inc`s `version`; devices compare their
   version against the server and only then re-download. Enables safe TV updates.
+- Every screen owns an auto-created playlist (`ensure_screen_playlist`) and every org gets an
+  auto-created location (`ensure_default_location`) — that is what removes the setup steps.
+- Video items are server-clamped to `duration = 0`, meaning "play the whole video".
 - Scheduling: `schedules` collection + `resolve_active_playlist()` already resolves
   day-of-week / time-window playlists server-side; UI for it is still to be built.
 
@@ -33,40 +44,45 @@ ship without new APK releases. Multi-tenant, secure, portable, owner-maintainabl
 1. **Super Admin (platform owner)** — creates/disables/deletes restaurants, manages users and
    passwords, sees every screen/device/storage figure, changes plans, enters "support mode"
    (scoped impersonation token) to help a restaurant, reads the audit log.
-2. **Restaurant Owner / Manager** — one organization only. Locations, screens, media, playlists,
-   playlist assignment, device pairing/renaming/reassignment, device status, team members.
+2. **Restaurant Owner / Manager** — one organization only. Screens, content, media, devices,
+   team, restaurant details. Locations only if they run more than one address.
 3. **Display Device (Fire TV)** — authenticates with a persistent device token issued at pairing.
    Never sees user credentials.
 
-## Implemented (2026-06)
+## Implemented
+### Phase 1–3 (initial build)
 - JWT auth: bcrypt hashing, access + refresh httpOnly cookies plus Bearer fallback,
   per-email brute-force lockout (5 attempts / 15 min), password change, super admin seeding.
 - Super Admin area: platform overview stats, restaurants CRUD + status toggle + owner creation,
   users CRUD + password reset + enable/disable, subscriptions (plan assignment), system page
   (all connected devices + device API contract), audit log feed.
-- Restaurant dashboard: welcome header, stat cards (screens, devices online, playlists, media,
-  storage), per-screen online/offline cards, 30s polling.
-- Locations CRUD with screen-count guard on delete.
 - Media Library: multi-upload (jpg/jpeg/png/webp/mp4, 200 MB cap, MIME + extension validation),
-  PNG/JPEG dimension extraction, thumbnail grid, rename, preview dialog, usage tracking,
-  soft-delete with in-use warning + force confirm.
-- Screens: CRUD, orientation/resolution/image-fit/default-duration, detail page with live
-  16:9 TV preview (play/pause/prev/next, video auto-advance), playlist assignment, device assignment.
-- Playlists: create/rename/duplicate/delete, two-pane editor with @hello-pangea/dnd reordering,
-  per-image duration, videos play full length, live preview, version badge.
-- Device pairing: TV requests a 6-digit code (15 min TTL, TTL index), dashboard enters the code and
-  picks location/screen/name, backend issues a persistent device token; codes are single-use.
-- Device REST API: `/api/device/pair/request`, `/pair/status`, `/config`, `/playlist`, `/heartbeat`.
-  Manifest returns externally reachable media URLs (`PUBLIC_BASE_URL`) plus cache keys.
-- Heartbeat monitoring: last_seen, app version, reported playlist version, `update_available` flag,
-  online/offline (120 s window) shown as pulsing dots across dashboard, screens, devices, admin.
-- Seed script `backend/seed_demo.py` for a demo restaurant.
+  PNG/JPEG dimension extraction, rename, preview, usage tracking, soft-delete with in-use warning.
+- Screens CRUD; Playlists create/rename/duplicate/delete with a two-pane drag-and-drop editor.
+- Device pairing (6-digit code, 15 min TTL, single use) → persistent device token.
+- Device REST API: `/pair/request`, `/pair/status`, `/config`, `/playlist`, `/heartbeat`
+  with `update_available`; heartbeat monitoring and 120 s online/offline windows.
+
+### Simplification pass
+- **Add Screen asks for one thing: a name.** Location and playlist are created automatically;
+  everything else sits behind a collapsed "Advanced options".
+- **Upload straight onto a screen**: `POST /api/screens/{id}/content` (multipart `files`) stores
+  the files and appends them to that screen's loop in one request; `PUT /api/screens/{id}/content`
+  reorders/retimes/removes. Both bump the playlist version.
+- **Screen page is the hub**: drag-and-drop dropzone, the running order with per-image seconds,
+  a live "How it looks on the TV" preview, and an Advanced panel for fit/orientation.
+- **Pairing needs only the code + which screen**; device name and location default from the screen.
+- **Navigation cut to** My TVs, Screens, Media Library, Fire TV Devices, Playlists, Settings.
+  Locations moved into Settings (with a note that they are only needed for multiple addresses).
+- Screen and dashboard cards now show a poster of what's playing (film-icon overlay for videos)
+  plus the item count, so the current state is visible at a glance.
 
 ## Verified
-Curl end-to-end: login → dashboard → pair request → dashboard pair → pair status → config →
-playlist manifest → heartbeat; media upload → `?auth=` fetch → device-token fetch; playlist
-version increments on edit; brute-force lockout returns 429. Testing agent iteration 1 run;
-its 3 reported bugs (internal media URL, dead `?auth=` fallback, IP-keyed lockout) are fixed.
+Testing agent iteration 1 (3 bugs found → all fixed: internal media URL, dead `?auth=` fallback,
+IP-keyed lockout) and iteration 2 (19/19 backend cases pass, full simplified UI journey driven in
+Playwright, no backend or UI bugs; only a cosmetic shadcn Dialog a11y warning outstanding).
+Curl-verified: name-only screen creation, multi-file upload onto a screen, reorder/retime persistence,
+video duration clamping, pair with code+screen only, full device API loop, media round-trip.
 
 ## Backlog
 ### P0 — next
@@ -77,11 +93,13 @@ its 3 reported bugs (internal media URL, dead `?auth=` fallback, IP-keyed lockou
 - Legacy migration script (legacy restaurant → org/location, screens, images → media + playlist items).
 - Screen-limit enforcement per subscription plan; billing provider integration.
 - Password reset by email (Resend) instead of admin-set passwords.
+- Offline-alert emails when a TV stops checking in.
 ### P2
-- Per-location media scoping filters, bulk media tagging/folders.
+- Copy content from one screen to another in one click.
 - Device remote actions (restart player, force refresh, screenshot).
-- Analytics: playback proof-of-display reporting.
-- Migrate `@app.on_event` to lifespan; explicit CORS origin for custom domains.
+- Analytics / proof-of-display reporting.
+- `DialogDescription` on dialogs (a11y warning); migrate `@app.on_event` to lifespan;
+  explicit CORS origins for custom domains.
 
 ## Credentials
 See `/app/memory/test_credentials.md`.

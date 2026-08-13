@@ -51,12 +51,13 @@ async def confirm_pairing(payload: PairConfirmIn, user: dict = Depends(require_o
     existing = await db.devices.find_one({"screen_id": payload.screen_id}, {"_id": 0})
     if existing:
         await db.devices.update_one({"id": existing["id"]}, {"$set": {"screen_id": None}})
+    default_name = screen["name"] if "tv" in screen["name"].lower() else f"{screen['name']} TV"
     device = {
         "id": new_id(),
         "org_id": user["org_id"],
-        "location_id": payload.location_id,
+        "location_id": payload.location_id or screen.get("location_id"),
         "screen_id": payload.screen_id,
-        "name": payload.name.strip(),
+        "name": (payload.name or "").strip() or default_name,
         "hardware_id": code_doc.get("hardware_id"),
         "model": code_doc.get("model"),
         "app_version": code_doc.get("app_version"),

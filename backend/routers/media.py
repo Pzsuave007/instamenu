@@ -73,12 +73,8 @@ async def list_media(user: dict = Depends(require_org_user)):
     return items
 
 
-@router.post("/upload", status_code=201)
-async def upload_media(
-    file: UploadFile = File(...),
-    location_id: Optional[str] = Query(None),
-    user: dict = Depends(require_org_user),
-):
+async def save_upload_file(file: UploadFile, org_id: str, user_id: str, location_id: Optional[str] = None) -> dict:
+    """Validate, push to object storage and record one uploaded file. Shared by media + screens."""
     filename = (file.filename or "upload").strip()
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext not in ALLOWED:
@@ -89,7 +85,7 @@ async def upload_media(
     if len(data) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="File is larger than the 200 MB limit")
     content_type, kind = ALLOWED[ext]
-    path = f"{APP_PREFIX}/{user['org_id']}/{uuid.uuid4()}.{ext}"
+    path = f"{APP_PREFIX}/{org_id}/{uuid.uuid4()}.{ext}"
     try:
         result = put_object(path, data, content_type)
     except Exception as exc:
@@ -97,7 +93,7 @@ async def upload_media(
     dims = _dimensions(data, ext)
     doc = {
         "id": new_id(),
-        "org_id": user["org_id"],
+        "org_id": org_id,
         "location_id": location_id,
         "name": filename,
         "storage_path": result["path"],
@@ -109,9 +105,19 @@ async def upload_media(
         "height": dims[1] if dims else None,
         "is_deleted": False,
         "created_at": now_iso(),
-        "uploaded_by": user["id"],
+        "uploaded_by": user_id,
     }
     await db.media.insert_one(dict(doc))
+    return doc
+
+
+@router.post("/upload", status_code=201)
+async def upload_media(
+    file: UploadFile = File(...),
+    location_id: Optional[str] = Query(None),
+    user: dict = Depends(require_org_user),
+):
+    doc = await save_upload_file(file, user["org_id"], user["id"], location_id)
     return {**doc, "used_in": []}
 
 

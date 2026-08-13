@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 2: verified iteration-1 fixes and covered the new simplified 'screen is the content hub' flow. All 19 backend pytest cases pass (added 4 new: create-screen-with-name-only, upload-onto-screen + reorder + version bump + dashboard thumbnails, pair-with-code+screen-only, cross-org 404 on /screens/{id}/content). Frontend Playwright drove owner login → nav Screens → Add Screen with only a name → landed on screen detail → uploaded 2 PNGs via screen-file-input → both items rendered in screen-content-items → TV preview showed 'Slide 1 of 2', next moved to 'Slide 2 of 2', toggle worked → duration change (22) persisted after reload → remove-item persisted after reload → advanced panel showed playlist version bumped to 2 → dashboard/My TVs and Screens list rendered → Settings page shows Locations, add-location succeeded. Prior iteration-1 bugs are confirmed resolved: /api/media/{id}/file?auth=<jwt> now returns 200, brute-force lockout (per-email) triggers 429 on 6th attempt, heartbeat rate-limit relaxed to allow the 2s test.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Screen create dialog + Location dialog", "issues": ["React warning: 'Missing Description or aria-describedby={undefined} for DialogContent'. Cosmetic a11y warning from shadcn Dialog; add DialogDescription or aria-describedby to suppress."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional/minor) Add DialogDescription (or aria-describedby) to the Add Screen, Add Location and Add Team member dialogs to silence the a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "screens.py: list_screens computes thumb_ids with `(playlists.get(...) or {}).get('items', [{}])[0].get('media_id')` — the `[{}]` default is only used when `.items` truthy check fails, but ordering is fine; still, safer to explicit-guard for readability.",
+    "screens.py add_screen_content assigns duration=0 for videos which the front-end interprets as 'play whole video' — good, but ensure PUT /screens/{id}/content also accepts duration=0 for videos (PlaylistItemIn.duration default is 10; a client that omits duration on a video would over-write 0 to 10). Consider clamping video items server-side to duration=0.",
+    "devices.py confirm_pairing default_name uses `screen['name']` if 'tv' is in the lowercased name else appends ' TV'. Screens named e.g. 'Specials TV' produce 'Specials TV'; screens named 'Main Menu' → 'Main Menu TV'. Fine, but this coupling should be documented or moved to a helper.",
+    "server.py still uses @app.on_event (deprecated in FastAPI); migrate to lifespan (carry-over from iteration 1)."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% of simplified flow verified"},
+  "test_credentials": "admin@instamenu.com / Admin123!  |  owner@casalola.com / Owner123!",
+  "seed_data_creation": "Created TEST_ rows during backend and UI runs and deleted them at the end (verified TEST_ screens/playlists/media/locations removed).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suite covers the new endpoints POST /api/screens (name-only), POST /api/screens/{id}/content (multipart 'files'), PUT /api/screens/{id}/content, POST /api/devices/pair (code+screen_id only) and cross-org 404 on those routes, plus dashboard thumbnail_media_id/thumbnail_kind fields. Frontend script covers Add Screen dialog, dropzone, upload button, preview controls, duration change, remove item, reload-persistence, and Settings > Locations. Iteration-1 CRITICAL/HIGH bugs (device manifest URL, ?auth JWT, lockout) all verified fixed. The Dialog a11y warning is the only outstanding cosmetic item."
+}

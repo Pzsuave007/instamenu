@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
-import { ArrowLeft, Film, GripVertical, Loader2, Settings2, Trash2, Tv, Upload } from "lucide-react";
+import { ArrowLeft, Film, FolderOpen, GripVertical, Loader2, Settings2, Trash2, Tv, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { StatusDot } from "@/components/StatusDot";
 import { TvPreview } from "@/components/TvPreview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +22,9 @@ export default function ScreenDetail() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [library, setLibrary] = useState([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [picked, setPicked] = useState([]);
   const fileRef = useRef(null);
 
   const applyPlaylist = (playlist) =>
@@ -39,7 +43,26 @@ export default function ScreenDetail() {
   useEffect(() => {
     load();
     api.get("/devices").then((r) => setDevices(r.data));
+    api.get("/media").then((r) => setLibrary(r.data)).catch(() => {});
   }, [load]);
+
+  const openLibrary = () => {
+    setPicked([]);
+    api.get("/media").then((r) => setLibrary(r.data)).catch(() => {});
+    setLibraryOpen(true);
+  };
+
+  const togglePick = (id) =>
+    setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+
+  const addPicked = async () => {
+    const chosen = picked
+      .map((id) => library.find((m) => m.id === id))
+      .filter(Boolean)
+      .map((m) => ({ media_id: m.id, duration: m.kind === "video" ? 0 : 10, media: m }));
+    setLibraryOpen(false);
+    await persist([...items, ...chosen], `${chosen.length} added to this TV`);
+  };
 
   const upload = async (fileList) => {
     const files = Array.from(fileList || []);
@@ -143,12 +166,20 @@ export default function ScreenDetail() {
           />
           <Button
             className="rounded-full px-5"
+            onClick={openLibrary}
+            data-testid="screen-choose-library-button"
+          >
+            <FolderOpen className="mr-2 h-4 w-4" /> Choose from library
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-full px-5"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             data-testid="screen-upload-button"
           >
             {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-            {uploading ? "Uploading…" : "Add videos or images"}
+            {uploading ? "Uploading…" : "Upload new"}
           </Button>
           <Button
             variant="outline"
@@ -190,7 +221,9 @@ export default function ScreenDetail() {
           >
             <Upload className="mx-auto mb-3 h-6 w-6 text-orange-500" />
             <p className="text-sm font-medium text-zinc-800">Drag videos or images here</p>
-            <p className="mt-1 text-xs text-zinc-500">Or click to browse · JPG, PNG, WEBP, MP4</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Or click to upload · already uploaded? Use “Choose from library”
+            </p>
           </div>
 
           {items.length > 0 ? (
@@ -358,6 +391,66 @@ export default function ScreenDetail() {
           ) : null}
         </div>
       </div>
+      <Dialog open={libraryOpen} onOpenChange={setLibraryOpen}>
+        <DialogContent className="max-w-3xl" data-testid="screen-library-dialog">
+          <DialogHeader>
+            <DialogTitle>Choose from your media library</DialogTitle>
+          </DialogHeader>
+          {library.length === 0 ? (
+            <p className="py-8 text-center text-sm text-zinc-500" data-testid="screen-library-empty">
+              Nothing in your library yet — upload a file first.
+            </p>
+          ) : (
+            <div
+              className="im-scroll grid max-h-[55vh] grid-cols-2 gap-4 overflow-y-auto pr-1 sm:grid-cols-3"
+              data-testid="screen-library-grid"
+            >
+              {library.map((m) => {
+                const isPicked = picked.includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => togglePick(m.id)}
+                    className={`overflow-hidden rounded-xl border-2 text-left duration-200 ${
+                      isPicked ? "border-orange-500" : "border-zinc-200 hover:border-orange-300"
+                    }`}
+                    data-testid={`screen-library-item-${m.id}`}
+                  >
+                    <div className="relative aspect-video bg-zinc-900">
+                      {m.kind === "video" ? (
+                        <div className="flex h-full w-full items-center justify-center text-white/80">
+                          <Film className="h-6 w-6" />
+                        </div>
+                      ) : (
+                        <img src={mediaUrl(m.id)} alt={m.name} className="h-full w-full object-cover" />
+                      )}
+                      {isPicked ? (
+                        <span className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-medium text-white">
+                          {picked.indexOf(m.id) + 1}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="truncate px-2.5 py-2 text-xs font-medium">{m.name}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setLibraryOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full"
+              onClick={addPicked}
+              disabled={picked.length === 0}
+              data-testid="screen-library-add"
+            >
+              Add {picked.length ? `${picked.length} ` : ""}to this TV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

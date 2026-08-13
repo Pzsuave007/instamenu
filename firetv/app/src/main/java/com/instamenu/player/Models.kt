@@ -62,6 +62,8 @@ data class Playlist(
 @Serializable
 data class HeartbeatResponse(
     val ok: Boolean = true,
+    val screen_id: String? = null,
+    val playlist_id: String? = null,
     val playlist_version: Int? = null,
     val update_available: Boolean = false,
     val next_heartbeat_seconds: Int = 60,

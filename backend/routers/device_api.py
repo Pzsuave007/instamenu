@@ -159,6 +159,8 @@ async def heartbeat(payload: HeartbeatIn, device: dict = Depends(get_device)):
         updates["app_version"] = payload.app_version
     if payload.playlist_version is not None:
         updates["playlist_version"] = payload.playlist_version
+    if payload.playlist_id is not None:
+        updates["reported_playlist_id"] = payload.playlist_id
     if payload.current_item:
         updates["current_item"] = payload.current_item
     await db.devices.update_one({"id": device["id"]}, {"$set": updates})
@@ -174,10 +176,15 @@ async def heartbeat(payload: HeartbeatIn, device: dict = Depends(get_device)):
     screen = await db.screens.find_one({"id": device.get("screen_id")}, {"_id": 0})
     playlist = await resolve_active_playlist(screen) if screen else None
     server_version = playlist.get("version") if playlist else None
+    server_playlist_id = playlist["id"] if playlist else None
+    # A device moved to another screen must reload even when both playlists share a version number.
+    playlist_changed = payload.playlist_id is not None and payload.playlist_id != server_playlist_id
+    version_changed = payload.playlist_version != server_version
     return {
         "ok": True,
-        "playlist_id": playlist["id"] if playlist else None,
+        "screen_id": screen["id"] if screen else None,
+        "playlist_id": server_playlist_id,
         "playlist_version": server_version,
-        "update_available": server_version is not None and payload.playlist_version != server_version,
+        "update_available": playlist_changed or version_changed,
         "next_heartbeat_seconds": 60,
     }

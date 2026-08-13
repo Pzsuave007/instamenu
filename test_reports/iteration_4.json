@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only verification of the ScreenDetail 'Choose from library' feature per iteration 3 review request. All edge cases in the request passed: library picker lists existing media without upload, multi-select with numbered badges, deselect reorders remaining picks, Add button disabled when empty and shows count when selected, adding videos results in duration=0 (no seconds box), same media file added to two different screens (Casa Lola: Main Menu Left + Main Menu Right) is truly shared (Media Library still shows exactly 7 files, both screens play the same media_id), playlist.version bumps on add (2 -> 3), items persist across full page reload, and remove/persist still works. Regression smoke: /media, /devices, /playlists load cleanly. State restored to pre-test values after run. Image-duration case not exercised because the library only contains videos (per the review request that is acceptable / optional).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ScreenDetail library picker", "issues": ["When 0 tiles are picked the Add button reads 'Add  to this TV' with a double space (empty count interpolated). Purely cosmetic — button is correctly disabled in that state."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ScreenDetail.jsx line 449: 'Add {picked.length || \"\"} to this TV' — when picked.length===0 this renders a stray double space. Consider hiding the count entirely or using a conditional (`picked.length ? ` ${picked.length}` : ''`).",
+    "openLibrary() re-fetches /media every open, which is fine, but there is no loading state shown in the dialog between open and fetch — a tiny 'Loading…' placeholder would prevent a brief empty-state flash on slow networks.",
+    "addPicked() optimistically closes the dialog before persist() completes; if PUT /screens/{id}/content fails the user only sees a toast and the picked state is already reset. Consider keeping the dialog open until success or offering a retry."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@casalola.com / Owner123! (Casa Lola Kitchen)",
+  "seed_data_creation": "None. Test appended 2 library videos to Screen A and 1 to Screen B, then restored both screens' playlists via PUT /api/screens/{id}/content back to their exact initial items. No media files uploaded or deleted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The 'Choose from library' feature on /screens/{id} is fully working end-to-end. All required data-testids exist (screen-choose-library-button, screen-library-dialog, screen-library-grid, screen-library-item-{mediaId}, screen-library-add, screen-upload-button, screen-file-input, screen-dropzone, screen-content-items, screen-content-item-{n}, screen-remove-item-{n}, screen-item-duration-{n}). If image-duration case must be verified, upload a small PNG via screen-upload-button first — the library currently contains 7 mp4 videos only.",
+  "rca of the issue": "Original bug: users could only upload new media on a screen page even though a shared Media Library existed. Fix (frontend-only): ScreenDetail now offers a primary 'Choose from library' button opening a Dialog that lists all org media (GET /api/media). Multi-select with ordered badges; on confirm, PUT /api/screens/{id}/content is called with existing items concatenated with the picked ones (video->duration 0, image->duration 10). Verified: no new media rows created (media count unchanged 7 before/after), same media_id present on multiple screens, playlist.version bumped by the backend's normalize_items()."
+}

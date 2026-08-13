@@ -52,8 +52,10 @@ class ApiClient(private val store: DeviceStore) {
 
     fun playlist(): Playlist = json.decodeFromString(call(authed("$base/api/device/playlist").build()))
 
-    fun heartbeat(playlistVersion: Int, status: String): HeartbeatResponse {
-        val payload = """{"app_version":"$appVersion","playlist_version":$playlistVersion,"status":"$status"}"""
+    fun heartbeat(playlistId: String?, playlistVersion: Int, status: String): HeartbeatResponse {
+        val idField = if (playlistId == null) "null" else "\"$playlistId\""
+        val payload =
+            """{"app_version":"$appVersion","playlist_id":$idField,"playlist_version":$playlistVersion,"status":"$status"}"""
         return json.decodeFromString(call(authed("$base/api/device/heartbeat").post(body(payload)).build()))
     }
 

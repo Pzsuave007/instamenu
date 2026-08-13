@@ -155,6 +155,7 @@ class DeviceUpdate(Base):
 
 class HeartbeatIn(Base):
     app_version: Optional[str] = None
+    playlist_id: Optional[str] = None
     playlist_version: Optional[int] = None
     status: Optional[str] = "playing"
     current_item: Optional[str] = None

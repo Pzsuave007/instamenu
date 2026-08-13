@@ -640,6 +640,174 @@ class TestSimplifiedScreenFlow:
                         headers=bearer(admin_token), timeout=15)
 
 
+# ---------------- 7c) Reassignment bug fix (playlist_id compare) ----------------
+class TestReassignmentBugFix:
+    def _pair_device(self, owner_token, screen_id):
+        hw = f"TEST_hw_{uuid.uuid4().hex[:8]}"
+        r = requests.post(f"{API}/device/pair/request", json={"hardware_id": hw, "app_version": "1.0.0"}, timeout=10)
+        code = r.json()["code"]
+        r = requests.post(f"{API}/devices/pair", json={"code": code, "screen_id": screen_id},
+                          headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 201, r.text
+        device_id = r.json()["id"]
+        r = requests.get(f"{API}/device/pair/status", params={"hardware_id": hw, "code": code}, timeout=10)
+        return device_id, r.json()["device_token"]
+
+    def _get_screen(self, owner_token, screen_id):
+        r = requests.get(f"{API}/screens/{screen_id}", headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def test_reassign_triggers_update_via_playlist_id(self, owner_token):
+        # Grab the three seeded screens
+        r = requests.get(f"{API}/screens", headers=bearer(owner_token), timeout=10)
+        assert r.status_code == 200
+        screens = r.json()
+        # Use first two screens with a playlist_id
+        s_with_pl = [s for s in screens if s.get("playlist_id")]
+        assert len(s_with_pl) >= 2, "need at least two screens with playlists"
+        A, B = s_with_pl[0], s_with_pl[1]
+        A_full = self._get_screen(owner_token, A["id"])
+        B_full = self._get_screen(owner_token, B["id"])
+        A_pl_id = A_full["playlist"]["id"]
+        A_pl_ver = A_full["playlist"]["version"]
+        B_pl_id = B_full["playlist"]["id"]
+        B_pl_ver = B_full["playlist"]["version"]
+        assert A_pl_id != B_pl_id
+
+        # Pair a device to A
+        device_id, dev_token = self._pair_device(owner_token, A["id"])
+        try:
+            # heartbeat reporting A -> update_available False
+            time.sleep(2.1)
+            r = requests.post(f"{API}/device/heartbeat",
+                              json={"playlist_id": A_pl_id, "playlist_version": A_pl_ver, "status": "playing"},
+                              headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            hb = r.json()
+            assert hb["update_available"] is False, f"expected no update for same screen A, got {hb}"
+            assert hb["playlist_id"] == A_pl_id
+            assert hb["screen_id"] == A["id"]
+
+            # Reassign device to screen B
+            r = requests.patch(f"{API}/devices/{device_id}", json={"screen_id": B["id"]},
+                               headers=bearer(owner_token), timeout=10)
+            assert r.status_code == 200, r.text
+            # server should clear reported_playlist_id/version on device doc
+            assert r.json().get("reported_playlist_id") is None
+            assert r.json().get("playlist_version") is None
+
+            # heartbeat still reporting A's playlist_id -> update_available True (THE BUG FIX)
+            time.sleep(2.1)
+            r = requests.post(f"{API}/device/heartbeat",
+                              json={"playlist_id": A_pl_id, "playlist_version": A_pl_ver, "status": "playing"},
+                              headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            hb = r.json()
+            assert hb["screen_id"] == B["id"]
+            assert hb["playlist_id"] == B_pl_id
+            assert hb["update_available"] is True, f"BUG: after reassignment update_available should be True, got {hb}"
+
+            # /device/config now reports screen B
+            r = requests.get(f"{API}/device/config", headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            cfg = r.json()
+            assert cfg["screen"]["id"] == B["id"]
+            assert cfg["playlist_id"] == B_pl_id
+
+            # /device/playlist returns B's manifest
+            r = requests.get(f"{API}/device/playlist", headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            mani = r.json()
+            assert mani["playlist_id"] == B_pl_id
+
+            # after device now reports B, update_available becomes False
+            time.sleep(2.1)
+            r = requests.post(f"{API}/device/heartbeat",
+                              json={"playlist_id": B_pl_id, "playlist_version": B_pl_ver, "status": "playing"},
+                              headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            assert r.json()["update_available"] is False
+        finally:
+            requests.delete(f"{API}/devices/{device_id}", headers=bearer(owner_token), timeout=10)
+
+    def test_reassign_same_version_different_playlist(self, owner_token):
+        """Construct exact bug: both playlists at same version, only playlist_id differs."""
+        # Create two screens (each auto-creates a playlist at version 1)
+        r1 = requests.post(f"{API}/screens", json={"name": f"TEST_A_{uuid.uuid4().hex[:5]}"},
+                           headers=bearer(owner_token), timeout=10)
+        assert r1.status_code == 201
+        SA = r1.json()
+        r2 = requests.post(f"{API}/screens", json={"name": f"TEST_B_{uuid.uuid4().hex[:5]}"},
+                           headers=bearer(owner_token), timeout=10)
+        assert r2.status_code == 201
+        SB = r2.json()
+        try:
+            # Both playlists start at v1 - exactly the ambiguous case
+            a_pl = self._get_screen(owner_token, SA["id"])["playlist"]
+            b_pl = self._get_screen(owner_token, SB["id"])["playlist"]
+            assert a_pl["version"] == b_pl["version"]  # both v1
+            assert a_pl["id"] != b_pl["id"]
+
+            device_id, dev_token = self._pair_device(owner_token, SA["id"])
+            try:
+                # baseline heartbeat
+                time.sleep(2.1)
+                r = requests.post(f"{API}/device/heartbeat",
+                                  json={"playlist_id": a_pl["id"], "playlist_version": a_pl["version"]},
+                                  headers={"X-Device-Token": dev_token}, timeout=10)
+                assert r.json()["update_available"] is False
+
+                # reassign
+                r = requests.patch(f"{API}/devices/{device_id}", json={"screen_id": SB["id"]},
+                                   headers=bearer(owner_token), timeout=10)
+                assert r.status_code == 200
+
+                # Same version but different playlist id -> MUST flag update
+                time.sleep(2.1)
+                r = requests.post(f"{API}/device/heartbeat",
+                                  json={"playlist_id": a_pl["id"], "playlist_version": a_pl["version"]},
+                                  headers={"X-Device-Token": dev_token}, timeout=10)
+                assert r.status_code == 200
+                hb = r.json()
+                assert hb["update_available"] is True, f"REGRESSION: same version diff playlist not detected: {hb}"
+                assert hb["playlist_id"] == b_pl["id"]
+            finally:
+                requests.delete(f"{API}/devices/{device_id}", headers=bearer(owner_token), timeout=10)
+        finally:
+            requests.delete(f"{API}/screens/{SA['id']}", headers=bearer(owner_token), timeout=10)
+            requests.delete(f"{API}/screens/{SB['id']}", headers=bearer(owner_token), timeout=10)
+            requests.delete(f"{API}/playlists/{SA['playlist_id']}?force=true", headers=bearer(owner_token), timeout=10)
+            requests.delete(f"{API}/playlists/{SB['playlist_id']}?force=true", headers=bearer(owner_token), timeout=10)
+
+    def test_heartbeat_backwards_compatible_no_playlist_id(self, owner_token):
+        """Older client omitting playlist_id must still work: version-only comparison."""
+        r = requests.get(f"{API}/screens", headers=bearer(owner_token), timeout=10)
+        s = next(x for x in r.json() if x.get("playlist_id"))
+        full = self._get_screen(owner_token, s["id"])
+        pl_ver = full["playlist"]["version"]
+
+        device_id, dev_token = self._pair_device(owner_token, s["id"])
+        try:
+            # Old client: no playlist_id, version matches -> update_available False
+            time.sleep(2.1)
+            r = requests.post(f"{API}/device/heartbeat",
+                              json={"playlist_version": pl_ver, "status": "playing"},
+                              headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            assert r.json()["update_available"] is False
+
+            # Old client: no playlist_id, version stale -> update_available True
+            time.sleep(2.1)
+            r = requests.post(f"{API}/device/heartbeat",
+                              json={"playlist_version": 0, "status": "playing"},
+                              headers={"X-Device-Token": dev_token}, timeout=10)
+            assert r.status_code == 200
+            assert r.json()["update_available"] is True
+        finally:
+            requests.delete(f"{API}/devices/{device_id}", headers=bearer(owner_token), timeout=10)
+
+
 # ---------------- 8) Tenant isolation & role guards ----------------
 class TestIsolation:
     def test_owner_forbidden_from_admin_endpoints(self, owner_token):

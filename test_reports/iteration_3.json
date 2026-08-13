@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 3 focused on the reported Spanish bug: 'si cambio el screen en el device por que no se cambia en la tele?' (reassigning a Fire TV device to a different screen didn't switch the TV). Backend: added TestReassignmentBugFix class (3 tests) — (a) reassign screen A -> B: baseline heartbeat with A's playlist_id/version returns update_available=false; after PATCH /api/devices/{id} to B, the SAME payload now returns update_available=true, screen_id=B, playlist_id=B; /device/config and /device/playlist correctly report B; a subsequent heartbeat with B's values goes back to false. (b) exact regression case: two brand-new screens whose auto-playlists both sit at version 1 — heartbeat with A's playlist_id after reassign still flips update_available to true, proving the fix is on playlist_id and not just version. (c) backwards compat: heartbeat that OMITS playlist_id (older Kotlin/browser build) still works — 200, update_available correct on version-only comparison. Also confirmed devices.py update_device() clears reported_playlist_id and playlist_version when the screen changes. Frontend: real browser end-to-end via Playwright — opened /player fresh, read code 165710, owner-logged-in via API, paired to Main Menu Right (playlist e643d315 v4); player picked up and started playing within 9s (localStorage im_manifest.playlist_id matched). Then opened dashboard in a new tab as owner, went to /devices, and used the data-testid=reassign-device-{deviceId} shadcn Select to move it to Specials TV (playlist ed04febe v2). The /player tab switched on its own 50s later — im_manifest.playlist_id updated to ed04febe, video element rendered Specials TV content, not idle and not offline. This is the exact user-reported flow the user said did not work. Full pytest sequential run: 21/22 pass; the single failure (TestDeviceAPI::test_full_device_flow_and_heartbeat_update_flag) is due to a random TCP connect timeout on one login retry inside the brute-force loop, not related to the bug fix, and passes in parallel runs. New reassignment suite: 3/3.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login (test infra)", "issue": "Intermittent TCP connect timeouts to public host during rapid brute-force loop can make TestAuth::test_brute_force_lockout flaky in sequential mode; test itself is correct (429 was observed in parallel run)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/reassignment_results.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "device_api.py heartbeat(): correct handling — playlist_changed only asserts when payload.playlist_id is provided (backwards compatible), and version_changed is a separate OR — good.",
+    "devices.py update_device(): the clearing of playlist_version and reported_playlist_id is only inside the `if data.get('screen_id')` branch, which is correct because those fields are per-screen state — good.",
+    "devices.py confirm_pairing() and update_device() both silently unassign an existing device on the target screen (set screen_id=None). This is the same behaviour as before, but note it can orphan a paired device that the user did not intend to unpair; a UX-level confirmation could be added later. Not required by the current bug.",
+    "Player.jsx (per task manifest change) now stores playlist_id inside im_manifest and compares cfg.playlist_id — verified from browser localStorage that the field is present and updated on reassignment. No regressions in idle/offline behaviour observed.",
+    "Screens list endpoint returns playlist_id=null for screens without a playlist_id set (Main Menu Left had none at test time in the current seed), but GET /api/screens/{id} returns playlist=null in that case — the player correctly falls back to idle. Consistent, not a bug.",
+    "Cosmetic: sequential pytest run takes ~100s; parallel loadscope run finishes in ~27s. Recommend keeping the parallel default in pytest.ini."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% on new reassignment suite (3/3); 21/22 overall (single failure is network-flake in brute-force loop, not code bug)", "frontend": "100% — reported bug end-to-end reproduced as fixed"},
+  "test_credentials": "owner@casalola.com / Owner123!  |  admin@instamenu.com / Admin123!",
+  "seed_data_creation": "Created and deleted a single TEST_UI_Device paired to Main Menu Right then reassigned to Specials TV; deleted at end. No screens or media touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The reassignment bug fix (POST /api/device/heartbeat now compares playlist_id AND version; PATCH /api/devices/{id} clears reported_playlist_id and playlist_version; Player.jsx tracks playlist_id in localStorage im_manifest) is verified end-to-end. New backend regression tests live in /app/backend/tests/backend_test.py -> class TestReassignmentBugFix. To reproduce the UI flow: /player + fresh localStorage -> read 6-digit code -> POST /api/devices/pair from owner session to screen A -> wait ~10s for activation -> use data-testid=reassign-device-{id} on /devices to pick screen B -> im_manifest.playlist_id flips within ~60s. Kotlin native player fix was code-reviewed only (no Android SDK).",
+  "rca of the issue": "Root cause: three places compared ONLY the numeric playlist_version to decide whether the player should reload — POST /api/device/heartbeat, the browser Player.jsx tick loop, and PlayerActivity.kt. Because every screen carries its own independent playlist and every playlist starts at version 1, any two screens routinely share the same version number. When a device was reassigned from screen A to screen B via PATCH /api/devices/{id}, the server would start reporting B's config, but the version check `payload.playlist_version == server_version` was true (e.g. both v4), so update_available stayed false, no refetch happened, and the TV kept playing A's cached media forever. Fix: also compare playlist identity — update_available = (payload.playlist_id given and != server playlist_id) OR (payload.playlist_version != server version). Backwards-compatible because playlist_id is optional in HeartbeatIn. Companion fix: PATCH /api/devices/{id} clears reported_playlist_id and playlist_version when screen_id changes, so a stale positive match cannot survive the reassignment. Verified via new backend test that constructs two v1 playlists (same version, different id) and confirms the flip works. Reproduction: pair to screen A, PATCH device to screen B whose playlist has the same version number as A's, watch that update_available stayed false pre-fix and is now true post-fix; browser player switches media within one poll (~60s)."
+}

@@ -25,27 +25,46 @@ export default function Player() {
   const [index, setIndex] = useState(0);
   const [online, setOnline] = useState(true);
   const versionRef = useRef(null);
+  const playlistIdRef = useRef(null);
   const itemsRef = useRef([]);
-  const videoRef = useRef(null);
 
   const orgName = config?.organization?.name || readManifest()?.organization || "InstaMenu";
 
-  const activate = useCallback(async (playlist) => {
-    if (!playlist?.items?.length) {
-      setItems([]);
-      itemsRef.current = [];
-      versionRef.current = playlist?.version ?? null;
-      return;
-    }
-    // Download everything first; only swap once all assets are on disk.
-    const prepared = await prepareItems(playlist.items);
-    itemsRef.current = prepared;
-    setItems(prepared);
-    setIndex(0);
-    versionRef.current = playlist.version;
-    writeManifest({ version: playlist.version, items: playlist.items, organization: orgName });
-    pruneCache(playlist.items.map((i) => i.url)).catch(() => {});
-  }, [orgName]);
+  const activate = useCallback(
+    async (playlist) => {
+      if (!playlist?.items?.length) {
+        itemsRef.current.forEach((i) => URL.revokeObjectURL(i.objectUrl));
+        itemsRef.current = [];
+        setItems([]);
+        versionRef.current = playlist?.version ?? null;
+        playlistIdRef.current = playlist?.playlist_id ?? null;
+        writeManifest({
+          playlist_id: playlistIdRef.current,
+          version: versionRef.current,
+          items: [],
+          organization: orgName,
+        });
+        return;
+      }
+      // Download everything first; only swap once every asset is cached.
+      const prepared = await prepareItems(playlist.items);
+      const previous = itemsRef.current;
+      itemsRef.current = prepared;
+      setItems(prepared);
+      setIndex(0);
+      versionRef.current = playlist.version;
+      playlistIdRef.current = playlist.playlist_id;
+      writeManifest({
+        playlist_id: playlist.playlist_id,
+        version: playlist.version,
+        items: playlist.items,
+        organization: orgName,
+      });
+      previous.forEach((i) => URL.revokeObjectURL(i.objectUrl));
+      pruneCache(playlist.items.map((i) => i.url)).catch(() => {});
+    },
+    [orgName]
+  );
 
   /** Replay the last known playlist from cache so a cold start without Wi-Fi still shows content. */
   const restoreFromCache = useCallback(async () => {
@@ -63,6 +82,7 @@ export default function Player() {
       itemsRef.current = restored;
       setItems(restored);
       versionRef.current = saved.version;
+      playlistIdRef.current = saved.playlist_id ?? null;
     }
   }, []);
 
@@ -106,7 +126,9 @@ export default function Player() {
 
     const syncPlaylist = async () => {
       const playlist = await fetchPlaylist();
-      if (playlist.version !== versionRef.current) await activate(playlist);
+      if (playlist.version !== versionRef.current || playlist.playlist_id !== playlistIdRef.current) {
+        await activate(playlist);
+      }
     };
 
     const tick = async () => {
@@ -115,7 +137,15 @@ export default function Player() {
         if (stopped) return;
         setConfig(cfg);
         setOnline(true);
-        if (versionRef.current === null || cfg.playlist_version !== versionRef.current) await syncPlaylist();
+        // A device reassigned to another screen gets a different playlist id, which can
+        // carry the same version number — so compare the id as well as the version.
+        if (
+          versionRef.current === null ||
+          cfg.playlist_id !== playlistIdRef.current ||
+          cfg.playlist_version !== versionRef.current
+        ) {
+          await syncPlaylist();
+        }
       } catch (err) {
         if (String(err.message) === "unauthorized") {
           setDeviceToken(null);
@@ -125,16 +155,17 @@ export default function Player() {
         setOnline(false); // Wi-Fi gone: keep playing whatever is cached
         return;
       }
-      // Heartbeat is reported separately so a hiccup here never stops playback.
+      // Reported separately so a heartbeat hiccup never interrupts playback.
       try {
         const hb = await sendHeartbeat({
           app_version: "web-1.0.0",
+          playlist_id: playlistIdRef.current,
           playlist_version: versionRef.current ?? 0,
           status: itemsRef.current.length ? "playing" : "idle",
         });
         if (hb.update_available) await syncPlaylist();
       } catch {
-        /* ignore: the next tick will report again */
+        /* the next tick reports again */
       }
     };
 
@@ -166,7 +197,7 @@ export default function Player() {
     };
   }, []);
 
-  // --- advance images on their duration; videos advance when they end ---
+  // --- images advance on their duration; videos advance when they end ---
   const current = items[index];
   useEffect(() => {
     if (!current || items.length === 0) return;
@@ -176,12 +207,8 @@ export default function Player() {
     return () => clearTimeout(t);
   }, [current, items, config]);
 
-  const fitClass =
-    (config?.screen?.image_fit || "fill") === "fit"
-      ? "object-contain"
-      : (config?.screen?.image_fit || "fill") === "stretch"
-        ? ""
-        : "object-cover";
+  const imageFit = config?.screen?.image_fit || "fill";
+  const fitClass = imageFit === "fit" ? "object-contain" : imageFit === "stretch" ? "" : "object-cover";
 
   if (!getDeviceToken()) {
     return (
@@ -217,7 +244,6 @@ export default function Player() {
     <div className="relative h-screen w-screen overflow-hidden bg-black" data-testid="player-stage">
       {current.type === "video" ? (
         <video
-          ref={videoRef}
           key={`${current.id}-${index}`}
           src={current.objectUrl}
           className={`h-full w-full ${fitClass}`}

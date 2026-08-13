@@ -89,6 +89,9 @@ async def update_device(device_id: str, payload: DeviceUpdate, user: dict = Depe
             {"screen_id": data["screen_id"], "org_id": user["org_id"]}, {"$set": {"screen_id": None}}
         )
         data["location_id"] = screen.get("location_id")
+        # The TV is about to show a different screen: forget what it reported for the old one.
+        data["playlist_version"] = None
+        data["reported_playlist_id"] = None
     res = await db.devices.update_one({"id": device_id, "org_id": user["org_id"]}, {"$set": data})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Device not found")

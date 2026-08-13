@@ -40,6 +40,7 @@ class PlayerActivity : AppCompatActivity() {
     private var playback: Job? = null
     private var items: List<LocalItem> = emptyList()
     private var activeVersion = -1
+    private var activePlaylistId: String? = null
 
     @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,6 +107,7 @@ class PlayerActivity : AppCompatActivity() {
             val local = cache.localItemsFor(saved)
             if (local.isNotEmpty()) {
                 activeVersion = saved.version
+                activePlaylistId = saved.playlist_id
                 activate(local, saved.image_fit)
             }
         }
@@ -128,16 +130,20 @@ class PlayerActivity : AppCompatActivity() {
                 config.screen?.image_fit?.let { store.imageFit = it }
             }
             val hb = api.heartbeat(
+                playlistId = activePlaylistId,
                 playlistVersion = activeVersion.coerceAtLeast(0),
                 status = if (items.isEmpty()) "idle" else "playing",
             )
-            if (hb.update_available || activeVersion < 0 || items.isEmpty()) {
+            // A device moved to another screen gets a different playlist id, so compare both.
+            val screenChanged = config.playlist_id != activePlaylistId
+            if (hb.update_available || screenChanged || activeVersion < 0 || items.isEmpty()) {
                 val playlist = api.playlist()
-                if (playlist.version != activeVersion || items.isEmpty()) {
+                if (playlist.version != activeVersion || playlist.playlist_id != activePlaylistId || items.isEmpty()) {
                     val prepared = cache.prepare(playlist)      // download everything first
                     if (prepared != null) {                     // only then swap
                         withContext(Dispatchers.Main) {
                             activeVersion = playlist.version
+                            activePlaylistId = playlist.playlist_id
                             activate(prepared, playlist.image_fit)
                         }
                         playlistStore.save(playlist)

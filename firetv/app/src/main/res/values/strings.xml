@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">InstaMenu</string>
+    <string name="brand">INSTA MENU</string>
+    <string name="connect_this_tv">Connect this TV</string>
+    <string name="pairing_code_label">PAIRING CODE</string>
+    <string name="pairing_placeholder">······</string>
+    <string name="pairing_help">Open your InstaMenu dashboard, go to Fire TV Devices,\nchoose “Pair New Device” and enter this code.</string>
+</resources>

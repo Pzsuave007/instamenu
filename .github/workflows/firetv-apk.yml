@@ -1,0 +1,54 @@
+name: Build Fire TV APK
+
+# Pushes to main that touch the player build an installable APK.
+# Download it from the run's "Artifacts" section, then sideload it to your Fire TV.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firetv/**"
+      - ".github/workflows/firetv-apk.yml"
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "InstaMenu server URL the app should talk to"
+        required: false
+        default: ""
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firetv
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        run: |
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.api_base_url }}" ]; then
+            EXTRA="-PinstamenuApiBaseUrl=${{ github.event.inputs.api_base_url }}"
+          fi
+          gradle :app:assembleDebug --no-daemon $EXTRA
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: instamenu-firetv-apk
+          path: firetv/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

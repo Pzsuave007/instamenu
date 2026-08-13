@@ -153,8 +153,7 @@ async def device_playlist(request: Request, device: dict = Depends(get_device)):
 @router.post("/heartbeat")
 async def heartbeat(payload: HeartbeatIn, device: dict = Depends(get_device)):
     last = device.get("last_seen")
-    if last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < 1:
-        raise HTTPException(status_code=429, detail="Heartbeat too frequent")
+    too_soon = bool(last) and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < 1
     updates = {"last_seen": now_iso(), "status": payload.status or "playing"}
     if payload.app_version:
         updates["app_version"] = payload.app_version
@@ -163,9 +162,15 @@ async def heartbeat(payload: HeartbeatIn, device: dict = Depends(get_device)):
     if payload.current_item:
         updates["current_item"] = payload.current_item
     await db.devices.update_one({"id": device["id"]}, {"$set": updates})
-    await db.device_heartbeats.insert_one(
-        {"device_id": device["id"], "org_id": device["org_id"], "at": updates["last_seen"], "status": updates["status"]}
-    )
+    if not too_soon:  # avoid log spam on player restarts, but never fail the call
+        await db.device_heartbeats.insert_one(
+            {
+                "device_id": device["id"],
+                "org_id": device["org_id"],
+                "at": updates["last_seen"],
+                "status": updates["status"],
+            }
+        )
     screen = await db.screens.find_one({"id": device.get("screen_id")}, {"_id": 0})
     playlist = await resolve_active_playlist(screen) if screen else None
     server_version = playlist.get("version") if playlist else None

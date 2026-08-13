@@ -12,6 +12,7 @@ import PlaylistEditor from "@/pages/PlaylistEditor";
 import MediaLibrary from "@/pages/MediaLibrary";
 import Devices from "@/pages/Devices";
 import Account from "@/pages/Account";
+import Player from "@/pages/Player";
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminRestaurants from "@/pages/admin/AdminRestaurants";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -51,6 +52,7 @@ export default function App() {
         <AuthProvider>
           <Toaster position="top-right" richColors />
           <Routes>
+            <Route path="/player" element={<Player />} />
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<LoginRoute />} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />

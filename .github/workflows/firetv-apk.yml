@@ -18,6 +18,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: firetv
@@ -52,3 +54,13 @@ jobs:
           name: instamenu-firetv-apk
           path: firetv/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # Also publish to a fixed "firetv-latest" release so the Fire TV Downloader app
+      # can install it straight from a URL, with no computer or ADB involved.
+      - name: Publish to the firetv-latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: firetv-latest
+          name: InstaMenu Fire TV Player (latest build)
+          body: "Latest InstaMenu Fire TV player build. Install with the Downloader app or ADB."
+          files: firetv/app/build/outputs/apk/debug/*.apk

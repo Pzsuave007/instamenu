@@ -4,7 +4,7 @@ name: Build Fire TV APK
 # Download it from the run's "Artifacts" section, then sideload it to your Fire TV.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     paths:
       - "firetv/**"
       - ".github/workflows/firetv-apk.yml"

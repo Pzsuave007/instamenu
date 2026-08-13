@@ -25,7 +25,6 @@ import kotlinx.coroutines.withContext
  * All business rules stay on the server so this APK rarely needs to change.
  */
 class PlayerActivity : AppCompatActivity() {
-
     private lateinit var store: DeviceStore
     private lateinit var api: ApiClient
     private lateinit var cache: MediaCache
@@ -85,17 +84,15 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 pairingCode.text = code.code
                 // Poll until the dashboard claims this code, then we own a permanent token.
-                var claimed = false
-                repeat(180) {
+                var attempts = 0
+                while (store.deviceToken == null && attempts < 180) {
+                    attempts += 1
                     delay(5_000)
                     val status = withContext(Dispatchers.IO) { runCatching { api.pairStatus(code.code) }.getOrNull() }
                     if (status?.paired == true && status.device_token != null) {
                         store.deviceToken = status.device_token
-                        claimed = true
-                        return@repeat
                     }
                 }
-                if (claimed) break
             }
             pairingPanel.visibility = View.GONE
             startPlaybackLoop()

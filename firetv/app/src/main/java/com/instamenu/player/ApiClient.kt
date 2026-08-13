@@ -19,6 +19,7 @@ class ApiClient(private val store: DeviceStore) {
         .build()
 
     private val base = BuildConfig.API_BASE_URL.trimEnd('/')
+    private val appVersion = BuildConfig.VERSION_NAME
 
     class Unauthorized : Exception("device token rejected")
 
@@ -37,7 +38,7 @@ class ApiClient(private val store: DeviceStore) {
         .header("X-Device-Token", store.deviceToken.orEmpty())
 
     fun requestPairing(): PairRequestResponse {
-        val payload = """{"hardware_id":"${store.hardwareId}","app_version":"${BuildConfig_versionName()}","model":"${android.os.Build.MODEL}"}"""
+        val payload = """{"hardware_id":"${store.hardwareId}","app_version":"$appVersion","model":"${android.os.Build.MODEL}"}"""
         val request = Request.Builder().url("$base/api/device/pair/request").post(body(payload)).build()
         return json.decodeFromString(call(request))
     }
@@ -52,8 +53,7 @@ class ApiClient(private val store: DeviceStore) {
     fun playlist(): Playlist = json.decodeFromString(call(authed("$base/api/device/playlist").build()))
 
     fun heartbeat(playlistVersion: Int, status: String): HeartbeatResponse {
-        val payload =
-            """{"app_version":"${BuildConfig_versionName()}","playlist_version":$playlistVersion,"status":"$status"}"""
+        val payload = """{"app_version":"$appVersion","playlist_version":$playlistVersion,"status":"$status"}"""
         return json.decodeFromString(call(authed("$base/api/device/heartbeat").post(body(payload)).build()))
     }
 
@@ -71,6 +71,4 @@ class ApiClient(private val store: DeviceStore) {
         }
         return temp.renameTo(target)
     }
-
-    private fun BuildConfig_versionName() = BuildConfig.VERSION_NAME
 }

@@ -15,7 +15,7 @@ from core.db import client, db, ensure_indexes  # noqa: E402
 from core.models import new_id, now_iso  # noqa: E402
 from core.security import hash_password, verify_password  # noqa: E402
 from core.storage import init_storage  # noqa: E402
-from routers import admin, auth, device_api, devices, media, org, screens  # noqa: E402
+from routers import admin, auth, device_api, devices, media, org, player_app, screens  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("instamenu")
@@ -36,6 +36,7 @@ api_router.include_router(media.router)
 api_router.include_router(screens.router)
 api_router.include_router(devices.router)
 api_router.include_router(device_api.router)
+api_router.include_router(player_app.router)
 app.include_router(api_router)
 
 app.add_middleware(

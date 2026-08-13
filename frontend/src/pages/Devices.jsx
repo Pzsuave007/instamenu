@@ -19,11 +19,13 @@ export default function Devices() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ code: "", location_id: "", screen_id: "", name: "" });
   const [pairing, setPairing] = useState(false);
+  const [playerApp, setPlayerApp] = useState(null);
 
   const load = () => {
     api.get("/devices").then((r) => setDevices(r.data)).catch((e) => toast.error(apiError(e)));
     api.get("/screens").then((r) => setScreens(r.data));
     api.get("/locations").then((r) => setLocations(r.data));
+    api.get("/player-app").then((r) => setPlayerApp(r.data)).catch(() => {});
   };
 
   useEffect(() => {
@@ -108,6 +110,16 @@ export default function Devices() {
           <li>2. Click "Pair New Device" and type that code.</li>
           <li>3. Choose the screen it should display. Done — no remote typing.</li>
         </ol>
+        {playerApp?.available ? (
+          <div className="mt-5 border-t border-white/10 pt-4" data-testid="devices-install-link">
+            <p className="text-sm text-zinc-400">
+              New television? On the Fire TV open the <strong className="text-white">Downloader</strong> app and enter:
+            </p>
+            <code className="mt-2 block break-all font-mono text-base text-orange-300">
+              {playerApp.download_url?.replace(/^https?:\/\//, "")}
+            </code>
+          </div>
+        ) : null}
       </Card>
 
       {devices.length === 0 ? (

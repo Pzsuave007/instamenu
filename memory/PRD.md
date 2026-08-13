@@ -71,8 +71,13 @@ Locations folded into Settings; screen cards show a poster of what is playing.
   (hardware id / device token / version in SharedPreferences), `BootReceiver` (restart after a
   Fire TV reboot). Server URL is a build flag (`-PinstamenuApiBaseUrl=…`), so the app follows the
   backend to any host.
-- **`.github/workflows/firetv-apk.yml`** builds a downloadable APK on push or on demand;
-  `/app/firetv/README.md` covers Android Studio, ADB sideloading and production signing.
+- **`.github/workflows/firetv-apk.yml`** builds a downloadable APK on push or on demand and also
+  publishes it to a fixed `firetv-latest` GitHub release; `/app/firetv/README.md` covers Android
+  Studio, ADB sideloading and production signing.
+- **Self-hosted APK distribution** (`routers/player_app.py`): Super Admin uploads the APK once under
+  System, and every television installs it by typing one short link — `/api/apk` — into the Fire TV
+  Downloader app. No GitHub, Drive, USB or ADB. The restaurant Devices page shows the same link.
+  Upload is super-admin only; the download endpoint is deliberately public (it is an installer).
 - Heartbeat no longer rejects rapid calls (the old 1 s 429 made real players flag themselves
   offline); it skips the log row instead.
 

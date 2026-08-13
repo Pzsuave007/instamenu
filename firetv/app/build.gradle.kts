@@ -19,7 +19,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"${project.findProperty("instamenuApiBaseUrl") ?: "https://instamenu2-preview.preview.emergentagent.com"}\""
+            "\"${project.findProperty("instamenuApiBaseUrl") ?: "https://firetv-dash.preview.emergentagent.com"}\""
         )
     }
 

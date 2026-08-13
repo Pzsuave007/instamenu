@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { ArrowLeft, Film, FolderOpen, GripVertical, Loader2, Settings2, Trash2, Tv, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ScheduleCard } from "@/components/ScheduleCard";
 import { StatusDot } from "@/components/StatusDot";
 import { TvPreview } from "@/components/TvPreview";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function ScreenDetail() {
   const [dragOver, setDragOver] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [library, setLibrary] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [picked, setPicked] = useState([]);
   const fileRef = useRef(null);
@@ -44,6 +46,7 @@ export default function ScreenDetail() {
     load();
     api.get("/devices").then((r) => setDevices(r.data));
     api.get("/media").then((r) => setLibrary(r.data)).catch(() => {});
+    api.get("/playlists").then((r) => setPlaylists(r.data)).catch(() => {});
   }, [load]);
 
   const openLibrary = () => {
@@ -311,7 +314,11 @@ export default function ScreenDetail() {
         <div className="space-y-6">
           <Card className="border-zinc-200 p-6 shadow-sm">
             <h2 className="mb-1 text-lg font-semibold">How it looks on the TV</h2>
-            <p className="mb-5 text-sm text-zinc-500">Exactly what the television plays, in order.</p>
+            <p className="mb-5 text-sm text-zinc-500">
+              {screen.scheduled_now
+                ? `Playing the scheduled menu “${screen.playlist?.name}” right now.`
+                : "Exactly what the television plays, in order."}
+            </p>
             <TvPreview
               items={items}
               imageFit={screen.image_fit}
@@ -353,6 +360,13 @@ export default function ScreenDetail() {
               )}
             </Card>
           ) : null}
+
+          <ScheduleCard
+            screen={screen}
+            playlists={playlists}
+            onChanged={load}
+            onPlaylistCreated={(pl) => setPlaylists((prev) => [pl, ...prev])}
+          />
 
           {showSettings ? (
             <Card className="border-zinc-200 p-6 shadow-sm" data-testid="screen-advanced-settings">

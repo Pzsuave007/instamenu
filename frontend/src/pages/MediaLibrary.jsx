@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Film, Image as ImageIcon, Pencil, Trash2, Upload } from "lucide-react";
+import { Film, Image as ImageIcon, MonitorPlay, Pencil, Trash2, Upload } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,31 @@ export default function MediaLibrary() {
   const [renaming, setRenaming] = useState(null);
   const [newName, setNewName] = useState("");
   const [preview, setPreview] = useState(null);
+  const [assigning, setAssigning] = useState(null);
+  const [screens, setScreens] = useState([]);
   const inputRef = useRef(null);
+
+  const openAssign = (item) => {
+    setAssigning(item);
+    api.get("/screens").then((r) => setScreens(r.data)).catch(() => {});
+  };
+
+  const addToScreen = async (screen) => {
+    try {
+      const { data } = await api.post(`/screens/${screen.id}/content/existing`, { media_ids: [assigning.id] });
+      toast.success(`Added to “${data.screen_name}” — the TV updates by itself`);
+      setAssigning(null);
+      load();
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
 
   const load = () => api.get("/media").then((r) => setMedia(r.data)).catch((e) => toast.error(apiError(e)));
 
   useEffect(() => {
     load();
+    api.get("/screens").then((r) => setScreens(r.data)).catch(() => {});
   }, []);
 
   const upload = async (files) => {
@@ -141,16 +160,24 @@ export default function MediaLibrary() {
                 </p>
                 <div className="mt-4 flex gap-2">
                   <Button
-                    variant="outline"
                     size="sm"
                     className="flex-1 rounded-full"
+                    onClick={() => openAssign(m)}
+                    data-testid={`assign-media-${m.id}`}
+                  >
+                    <MonitorPlay className="mr-1.5 h-3.5 w-3.5" /> Add to screen
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
                     onClick={() => {
                       setRenaming(m);
                       setNewName(m.name);
                     }}
                     data-testid={`rename-media-${m.id}`}
                   >
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" /> Rename
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="outline"
@@ -167,6 +194,36 @@ export default function MediaLibrary() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!assigning} onOpenChange={(v) => !v && setAssigning(null)}>
+        <DialogContent data-testid="assign-media-dialog">
+          <DialogHeader>
+            <DialogTitle className="truncate">Add “{assigning?.name}” to which TV?</DialogTitle>
+          </DialogHeader>
+          {screens.length === 0 ? (
+            <p className="py-6 text-center text-sm text-zinc-500">You have no screens yet.</p>
+          ) : (
+            <div className="space-y-2" data-testid="assign-screen-list">
+              {screens.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => addToScreen(s)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-left duration-200 hover:border-orange-300 hover:bg-orange-50"
+                  data-testid={`assign-to-screen-${s.id}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{s.name}</span>
+                    <span className="block text-xs text-zinc-500">
+                      {s.item_count} item{s.item_count === 1 ? "" : "s"} · {s.device?.name || "no Fire TV"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-orange-600">Add</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
         <DialogContent data-testid="rename-media-dialog">

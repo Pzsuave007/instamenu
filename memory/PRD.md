@@ -90,6 +90,19 @@ Locations folded into Settings; screen cards show a poster of what is playing.
   bumps the target playlist's version, so **already-installed older APKs** (which compare only
   versions and do not send `playlist_id`) also switch — no app update needed for this fix.
 
+### Phase 6 — scheduling & library assign (2026-08-13)
+- **Menu Scheduling (Time slots)**: `schedules` collection + endpoints (`GET/POST/DELETE /api/schedules`).
+  Server-side `resolve_active_playlist` picks the scheduled playlist by priority, day-of-week,
+  date range and time window (overnight-aware) in the location's timezone; devices get the resolved
+  playlist through `/api/device/config` and `/api/device/playlist`. UI: `ScheduleCard.jsx` on the
+  screen page (breakfast/lunch/dinner slots, day presets, create-new-menu inline, timezone note).
+- **Add to screen from Media Library**: each media tile has an "Add to screen" action opening a
+  dialog that lists all screens (`POST /api/screens/{id}/content/existing`) so a file is dropped onto
+  a TV without visiting the screen page.
+- Verified 2026-08-13: backend curl flow (add-to-screen, create/list/delete schedule, resolution
+  logic) + UI screenshots of both dialogs. No standalone `/screens/{id}/resolved-playlist` endpoint —
+  resolution lives in the device API.
+
 ## Verified
 Testing agent iteration 1 (3 issues → fixed: internal media URL, dead `?auth=` fallback, IP-keyed
 lockout), iteration 2 (19/19 backend, full simplified UI journey, no bugs), iteration 3 (player).
@@ -98,7 +111,6 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
 
 ## Backlog
 ### P1
-- Scheduling UI over the existing schedules API (breakfast / lunch / dinner windows).
 - Legacy migration script (legacy restaurant → org/location, screens, images → media + items).
 - Copy content from one screen to another.
 - Offline-alert emails when a TV stops checking in; password reset by email (Resend).

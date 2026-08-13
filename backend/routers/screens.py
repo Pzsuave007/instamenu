@@ -1,6 +1,7 @@
 """Screens, playlists (with versioning), schedules, and resolved playback config."""
 from datetime import datetime, timedelta, timezone
 from typing import List
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
@@ -46,23 +47,37 @@ async def hydrate_playlist(org_id: str, playlist: dict) -> dict:
 
 
 async def resolve_active_playlist(screen: dict) -> dict | None:
-    """Schedule-aware playlist resolution; falls back to the screen default playlist."""
-    now = datetime.now(timezone.utc)
+    """Schedule-aware playlist resolution in the location's own timezone.
+
+    Falls back to the screen's default playlist when no time slot matches.
+    """
+    location = await db.locations.find_one({"id": screen.get("location_id")}, {"_id": 0, "timezone": 1})
+    try:
+        tz = ZoneInfo((location or {}).get("timezone") or "UTC")
+    except Exception:
+        tz = ZoneInfo("UTC")
+    now = datetime.now(tz)
+    minutes_now = now.hour * 60 + now.minute
+    today = now.date().isoformat()
     schedules = await db.schedules.find(
         {"screen_id": screen["id"], "is_active": True}, {"_id": 0}
     ).sort("priority", -1).to_list(100)
-    minutes_now = now.hour * 60 + now.minute
     for sch in schedules:
-        dow = now.weekday()
-        if sch.get("days_of_week") and dow not in sch["days_of_week"]:
+        if sch.get("days_of_week") and now.weekday() not in sch["days_of_week"]:
+            continue
+        if sch.get("start_date") and today < sch["start_date"]:
+            continue
+        if sch.get("end_date") and today > sch["end_date"]:
             continue
         start = sch.get("start_time", "00:00").split(":")
         end = sch.get("end_time", "23:59").split(":")
         start_m = int(start[0]) * 60 + int(start[1])
         end_m = int(end[0]) * 60 + int(end[1])
-        in_window = start_m <= minutes_now <= end_m if start_m <= end_m else (minutes_now >= start_m or minutes_now <= end_m)
+        in_window = (
+            start_m <= minutes_now <= end_m if start_m <= end_m else (minutes_now >= start_m or minutes_now <= end_m)
+        )
         if in_window:
-            pl = await db.playlists.find_one({"id": sch["playlist_id"]}, {"_id": 0})
+            pl = await db.playlists.find_one({"id": sch["playlist_id"], "org_id": screen["org_id"]}, {"_id": 0})
             if pl:
                 return pl
     if screen.get("playlist_id"):
@@ -189,10 +204,15 @@ async def get_screen(screen_id: str, user: dict = Depends(require_org_user)):
     playlist = await resolve_active_playlist(screen)
     device = await db.devices.find_one({"screen_id": screen_id}, {"_id": 0, "device_token": 0})
     location = await db.locations.find_one({"id": screen.get("location_id")}, {"_id": 0})
+    rules = await db.schedules.find({"screen_id": screen_id, "org_id": user["org_id"]}, {"_id": 0}).sort("start_time", 1).to_list(100)
+    names = {p["id"]: p["name"] for p in await db.playlists.find({"org_id": user["org_id"]}, {"_id": 0}).to_list(500)}
     return {
         **screen,
         "location_name": location["name"] if location else None,
+        "timezone": (location or {}).get("timezone"),
         "playlist": await hydrate_playlist(user["org_id"], playlist) if playlist else None,
+        "scheduled_now": bool(playlist and playlist["id"] != screen.get("playlist_id")),
+        "schedules": [{**r, "playlist_name": names.get(r["playlist_id"])} for r in rules],
         "device": device,
         "online": is_online(device.get("last_seen")) if device else False,
         "last_seen": device.get("last_seen") if device else None,
@@ -228,6 +248,36 @@ async def add_screen_content(
         )
     fresh = await db.playlists.find_one({"id": playlist["id"]}, {"_id": 0})
     return {"added": added, "errors": errors, "playlist": await hydrate_playlist(user["org_id"], fresh)}
+
+
+@router.post("/screens/{screen_id}/content/existing", status_code=201)
+async def add_existing_media(screen_id: str, payload: dict, user: dict = Depends(require_org_user)):
+    """Append media already in the library to a screen's loop (used by the Media Library)."""
+    media_ids = (payload or {}).get("media_ids") or []
+    if not media_ids:
+        raise HTTPException(status_code=400, detail="Choose at least one file")
+    screen = await db.screens.find_one({"id": screen_id, "org_id": user["org_id"]}, {"_id": 0})
+    if not screen:
+        raise HTTPException(status_code=404, detail="Screen not found")
+    found = await db.media.find(
+        {"org_id": user["org_id"], "id": {"$in": media_ids}, "is_deleted": False}, {"_id": 0}
+    ).to_list(200)
+    if len(found) != len(set(media_ids)):
+        raise HTTPException(status_code=404, detail="One or more files were not found")
+    playlist = await ensure_screen_playlist(screen, user)
+    by_id = {m["id"]: m for m in found}
+    items = list(playlist.get("items", [])) + [
+        {
+            "media_id": mid,
+            "duration": 0 if by_id[mid]["kind"] == "video" else screen.get("default_image_duration", 10),
+        }
+        for mid in media_ids
+    ]
+    await db.playlists.update_one(
+        {"id": playlist["id"]}, {"$set": {"items": items, "updated_at": now_iso()}, "$inc": {"version": 1}}
+    )
+    fresh = await db.playlists.find_one({"id": playlist["id"]}, {"_id": 0})
+    return {"screen_name": screen["name"], "added": len(media_ids), "playlist": await hydrate_playlist(user["org_id"], fresh)}
 
 
 @router.put("/screens/{screen_id}/content")
@@ -384,17 +434,28 @@ async def list_schedules(screen_id: str | None = None, user: dict = Depends(requ
     query = {"org_id": user["org_id"]}
     if screen_id:
         query["screen_id"] = screen_id
-    return await db.schedules.find(query, {"_id": 0}).sort("priority", -1).to_list(500)
+    rules = await db.schedules.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
+    names = {p["id"]: p["name"] for p in await db.playlists.find({"org_id": user["org_id"]}, {"_id": 0}).to_list(500)}
+    return [{**r, "playlist_name": names.get(r["playlist_id"])} for r in rules]
 
 
 @router.post("/schedules", status_code=201)
 async def create_schedule(payload: ScheduleIn, user: dict = Depends(require_org_user)):
-    screen = await db.screens.find_one({"id": payload.screen_id, "org_id": user["org_id"]})
+    screen = await db.screens.find_one({"id": payload.screen_id, "org_id": user["org_id"]}, {"_id": 0})
     if not screen:
         raise HTTPException(status_code=404, detail="Screen not found")
+    playlist = await db.playlists.find_one({"id": payload.playlist_id, "org_id": user["org_id"]}, {"_id": 0})
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Menu not found")
+    if payload.start_time >= payload.end_time and payload.end_time != "00:00":
+        pass  # overnight windows (e.g. 16:00 -> 02:00) are allowed
     doc = {"id": new_id(), "org_id": user["org_id"], **payload.model_dump(), "created_at": now_iso()}
     await db.schedules.insert_one(dict(doc))
-    return doc
+    # Bump the screen so paired televisions re-check what they should be playing.
+    if screen.get("playlist_id"):
+        await db.playlists.update_one({"id": screen["playlist_id"]}, {"$inc": {"version": 1}})
+    await audit(user["org_id"], user["id"], "schedule.create", "schedule", doc["id"])
+    return {**doc, "playlist_name": playlist["name"]}
 
 
 @router.delete("/schedules/{schedule_id}")

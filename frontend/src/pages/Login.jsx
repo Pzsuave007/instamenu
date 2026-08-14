@@ -32,8 +32,11 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       <div className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-zinc-900 p-12 text-white lg:flex im-grain">
-        <div className="flex items-center">
-          <img src="/logo.jpg" alt="InstaMenu" className="h-16 w-16 rounded-2xl object-cover" />
+        <div className="flex items-center gap-3">
+          <img src="/logo.jpg" alt="InstaMenu" className="h-12 w-12 rounded-xl object-cover" />
+          <span className="font-display text-xl font-semibold">
+            Insta<span className="text-orange-400">Menu</span>
+          </span>
         </div>
         <div className="max-w-lg im-enter">
           <h2 className="font-display text-5xl font-semibold leading-[1.05] tracking-tight">
@@ -61,8 +64,11 @@ export default function Login() {
 
       <div className="flex w-full items-center justify-center bg-white px-6 py-16 lg:w-[520px]">
         <div className="w-full max-w-sm im-enter">
-          <div className="mb-10 flex items-center lg:hidden">
-            <img src="/logo.jpg" alt="InstaMenu" className="h-14 w-14 rounded-2xl object-cover" />
+          <div className="mb-10 flex items-center gap-3 lg:hidden">
+            <img src="/logo.jpg" alt="InstaMenu" className="h-12 w-12 rounded-xl object-cover" />
+            <span className="font-display text-xl font-semibold">
+              Insta<span className="text-orange-500">Menu</span>
+            </span>
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
           <p className="mt-2 text-sm text-zinc-500">Welcome back. Let's get your screens updated.</p>

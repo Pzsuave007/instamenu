@@ -54,8 +54,11 @@ export function AppShell({ children }) {
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <Link to={isAdminArea ? "/admin" : "/dashboard"} className="flex items-center justify-center px-6 py-6">
-        <img src="/logo.jpg" alt="InstaMenu" className="h-16 w-16 rounded-2xl object-cover" />
+      <Link to={isAdminArea ? "/admin" : "/dashboard"} className="flex items-center gap-3 px-6 py-6">
+        <img src="/logo.jpg" alt="InstaMenu" className="h-12 w-12 rounded-xl object-cover" />
+        <span className="font-display text-xl font-semibold tracking-tight text-zinc-900">
+          Insta<span className="text-orange-500">Menu</span>
+        </span>
       </Link>
 
       <nav className="flex-1 space-y-1 px-3" data-testid="sidebar-nav">
@@ -129,7 +132,7 @@ export function AppShell({ children }) {
             <Menu className="h-6 w-6" />
           </button>
           <img src="/logo.jpg" alt="InstaMenu" className="h-9 w-9 rounded-lg object-cover" />
-          <span className="font-display font-semibold">InstaMenu</span>
+          <span className="font-display font-semibold">Insta<span className="text-orange-500">Menu</span></span>
         </header>
 
         {user?.impersonating ? (

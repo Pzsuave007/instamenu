@@ -14,8 +14,9 @@ if [ ! -d "$BUILD" ]; then
 fi
 
 mkdir -p "$PUBLIC_HTML"
-# Borra assets viejos (hashes) para no mezclar versiones, sin tocar otros archivos del usuario.
-rm -rf "$PUBLIC_HTML/static" "$PUBLIC_HTML/index.html" "$PUBLIC_HTML/asset-manifest.json" "$PUBLIC_HTML/sw.js"
+# Borra assets/entrypoints viejos para que no eclipsen al React (sin tocar el resto).
+rm -rf "$PUBLIC_HTML/static" "$PUBLIC_HTML/index.html" "$PUBLIC_HTML/index.php" \
+       "$PUBLIC_HTML/asset-manifest.json" "$PUBLIC_HTML/sw.js"
 cp -r "$BUILD/." "$PUBLIC_HTML/"
 
 # .htaccess con el puerto correcto (proxy /api + fallback SPA + force HTTPS)

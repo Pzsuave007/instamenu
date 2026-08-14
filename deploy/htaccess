@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Servir SIEMPRE el index.html de React (no un index.php viejo que haya quedado)
+DirectoryIndex index.html
+
 # Forzar HTTPS
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

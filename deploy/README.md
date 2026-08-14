@@ -1,12 +1,20 @@
 # Desplegar InstaMenu 2.0 en tu servidor cPanel
 
 Perfil probado: **VPS + cPanel + AlmaLinux + Apache + Python 3.9+ + MongoDB local**.
-Dominio: **instamenuapp.com** · Usuario cPanel: **instamenuapp** · Puerto backend: **8010**.
+Dominio: **instamenuapp.com** · Usuario cPanel: **instamenuapp** · Puerto backend: **8012**.
 
 ## Antes de empezar (en Emergent)
-1. `yarn build` del frontend ya viene hecho y commiteado en `frontend/build/`
-   (se construye aquí, NO en el servidor, por la poca RAM del VPS).
-   El build apunta a `https://instamenuapp.com` (ver `frontend/.env.production`).
+1. Construye el frontend **forzando la URL del dominio** (el `.env` de dev puede pisar al
+   `.env.production`, por eso se pasa explícita):
+   ```bash
+   cd /app/frontend && REACT_APP_BACKEND_URL=https://instamenuapp.com yarn build
+   ```
+   Verifica que el bundle apunte al dominio y NO al preview:
+   ```bash
+   grep -c instamenuapp.com build/static/js/main.*.js   # > 0
+   grep -c firetv-dash      build/static/js/main.*.js    # debe ser 0
+   ```
+   El `frontend/build/` se commitea al repo (el VPS tiene poca RAM; se compila aquí).
 2. Pulsa **Save to Github** en el chat para subir el repo.
 
 ## En el servidor (como root, una sola vez)

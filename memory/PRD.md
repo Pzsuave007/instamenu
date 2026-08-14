@@ -103,6 +103,27 @@ Locations folded into Settings; screen cards show a poster of what is playing.
   logic) + UI screenshots of both dialogs. No standalone `/screens/{id}/resolved-playlist` endpoint —
   resolution lives in the device API.
 
+## Self-hosting / cPanel deploy (2026-08-14)
+User wants a permanent fixed domain so Fire TV devices never break on fork (preview URL changes).
+Target: **instamenuapp.com**, cPanel user **instamenuapp**, backend port **8010**, repo
+`github.com/Pzsuave007/instamenu`. Server profile: GoDaddy VPS + cPanel + AlmaLinux + Apache +
+MongoDB local (Apache proxy `/api` → uvicorn, SPA fallback, nohup + crontab @reboot — no supervisor).
+- **Local disk storage**: `core/storage.py` now has two backends switched by `STORAGE_BACKEND`
+  (`emergent` default = preview; `local` = self-host writing to `MEDIA_STORAGE_DIR`). Same interface,
+  no other code changed. Preview keeps using Emergent storage (existing media intact, verified).
+- **Deploy scaffolding** at repo root + `deploy/`: `deploy.sh`, `bootstrap.sh`, `install_server.sh`,
+  `fix.sh`, `publish_frontend.sh`, `start.sh`, `setup-autostart.sh`, `htaccess` (`__PORT__` templated),
+  `requirements.prod.txt` (slim, no pandas/numpy/emergentintegrations), `backend.env.production.example`,
+  `README.md` (Spanish steps).
+- **Frontend prod build** committed: `frontend/.env.production` bakes `REACT_APP_BACKEND_URL=
+  https://instamenuapp.com`; `/build` un-ignored in `.gitignore` so build ships in the repo (VPS has
+  low RAM — build in Emergent, copy to public_html on server). Build verified, domain baked in bundle.
+- **Native APK** default `instamenuApiBaseUrl` → `https://instamenuapp.com` (gradle + workflow input).
+- Prod env template: `DB_NAME=instamenu_prod` (fresh DB; super admin auto-seeded from
+  `ADMIN_EMAIL`/`ADMIN_PASSWORD`), `PUBLIC_BASE_URL` + `CORS_ORIGINS` set to the domain.
+- Not yet run on the real server (needs their cPanel). Verified locally: local-storage unit round-trip,
+  prod build success, preview unaffected.
+
 ## Verified
 Testing agent iteration 1 (3 issues → fixed: internal media URL, dead `?auth=` fallback, IP-keyed
 lockout), iteration 2 (19/19 backend, full simplified UI journey, no bugs), iteration 3 (player).

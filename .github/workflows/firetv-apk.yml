@@ -13,7 +13,7 @@ on:
       api_base_url:
         description: "InstaMenu server URL the app should talk to"
         required: false
-        default: ""
+        default: "https://instamenuapp.com"
 
 jobs:
   apk:

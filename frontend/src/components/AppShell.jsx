@@ -146,7 +146,7 @@ export function AppShell({ children }) {
           </div>
         ) : null}
 
-        <main className="mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-8 sm:py-10">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] overflow-x-clip px-5 py-8 sm:px-8 sm:py-10">{children}</main>
       </div>
     </div>
   );

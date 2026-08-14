@@ -196,7 +196,7 @@ export default function ScreenDetail() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr,1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
         <Card className="border-zinc-200 p-6 shadow-sm">
           <h2 className="mb-1 text-lg font-semibold">What this TV is playing</h2>
           <p className="mb-5 text-sm text-zinc-500">

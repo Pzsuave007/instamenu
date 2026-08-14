@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Tv } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,8 +33,8 @@ export default function Login() {
     <div className="flex min-h-screen">
       <div className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-zinc-900 p-12 text-white lg:flex im-grain">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500">
-            <Tv className="h-5 w-5" />
+          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
+            <img src="/logo.jpg" alt="InstaMenu" className="h-full w-full object-cover" />
           </span>
           <span className="font-display text-lg font-semibold">
             Insta<span className="text-orange-400">Menu</span>
@@ -67,8 +67,8 @@ export default function Login() {
       <div className="flex w-full items-center justify-center bg-white px-6 py-16 lg:w-[520px]">
         <div className="w-full max-w-sm im-enter">
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white">
-              <Tv className="h-5 w-5" />
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
+              <img src="/logo.jpg" alt="InstaMenu" className="h-full w-full object-cover" />
             </span>
             <span className="font-display text-lg font-semibold">InstaMenu</span>
           </div>

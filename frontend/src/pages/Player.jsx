@@ -216,7 +216,7 @@ export default function Player() {
         className="flex h-screen w-screen flex-col items-center justify-center bg-black text-white"
         data-testid="player-pairing"
       >
-        <p className="font-display text-2xl tracking-[0.35em] text-orange-500">INSTA MENU</p>
+        <img src="/logo.jpg" alt="InstaMenu" className="h-40 w-40 rounded-3xl object-cover shadow-2xl sm:h-48 sm:w-48" />
         <h1 className="mt-10 font-display text-4xl font-semibold">Connect this TV</h1>
         <p className="mt-14 text-sm uppercase tracking-[0.3em] text-zinc-500">Pairing code</p>
         <p

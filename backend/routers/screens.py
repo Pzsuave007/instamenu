@@ -337,6 +337,7 @@ async def list_playlists(user: dict = Depends(require_org_user)):
                 "location_name": locations.get(pl.get("location_id")),
                 "assigned_screens": assigned,
                 "thumbnail_media_id": hydrated["items"][0]["media_id"] if hydrated["items"] else None,
+                "thumbnail_kind": hydrated["items"][0]["media"].get("kind") if hydrated["items"] else None,
             }
         )
     return out

@@ -84,11 +84,21 @@ export default function Playlists() {
             <Card key={pl.id} className="overflow-hidden border-zinc-200 shadow-sm" data-testid={`playlist-card-${pl.id}`}>
               <Link to={`/playlists/${pl.id}`} className="block aspect-video bg-zinc-900">
                 {pl.thumbnail_media_id ? (
-                  <img
-                    src={mediaUrl(pl.thumbnail_media_id)}
-                    alt={pl.name}
-                    className="h-full w-full object-cover duration-300 hover:opacity-90"
-                  />
+                  pl.thumbnail_kind === "video" ? (
+                    <video
+                      src={`${mediaUrl(pl.thumbnail_media_id)}#t=0.5`}
+                      className="h-full w-full object-cover duration-300 hover:opacity-90"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrl(pl.thumbnail_media_id)}
+                      alt={pl.name}
+                      className="h-full w-full object-cover duration-300 hover:opacity-90"
+                    />
+                  )
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-zinc-600">
                     <ListVideo className="h-8 w-8" />

@@ -17,6 +17,13 @@ as_user() { su -s /bin/bash -l "$CPANEL_USER" -c "$1"; }
 
 if [ ! -d "$PROD/venv" ]; then
     echo ">>> INSTALACIÓN POR PRIMERA VEZ"
+    # Seguridad: no pisar el puerto de otra app ya instalada en el servidor.
+    if ss -ltn 2>/dev/null | grep -q ":${PORT} "; then
+        echo "❌ El puerto ${PORT} YA ESTÁ EN USO por otra aplicación de tu servidor."
+        echo "   No se instaló nada. Elige un puerto libre en la variable PORT de deploy.sh y vuelve a correrlo."
+        echo "   Para ver puertos ocupados:  ss -ltnp | grep -E ':80[0-9][0-9]'"
+        exit 1
+    fi
     if [ ! -d "$REPO/.git" ]; then
         rm -rf "$REPO" && git clone "$REPO_URL" "$REPO"
     fi
@@ -41,10 +48,14 @@ else
 fi
 
 sleep 2
-if curl -sf "http://localhost:$PORT/api/" >/dev/null; then
-    echo "  ✅ Backend OK en el puerto $PORT"
+RESP="$(curl -sf "http://localhost:$PORT/api/" 2>/dev/null || true)"
+if echo "$RESP" | grep -q "InstaMenu"; then
+    echo "  ✅ Backend InstaMenu OK en el puerto $PORT"
 else
-    echo "  ❌ El backend no responde. Últimas líneas del log:"
+    echo "  ❌ El puerto $PORT NO respondió como InstaMenu."
+    echo "     Respuesta recibida: ${RESP:-(sin respuesta)}"
+    echo "     Si ves otra app aquí, el puerto está ocupado: elige otro en PORT y vuelve a correr deploy.sh."
+    echo "     Últimas líneas del log del backend:"
     tail -n 20 "$PROD/backend.log" 2>/dev/null
     exit 1
 fi

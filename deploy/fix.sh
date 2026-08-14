@@ -15,4 +15,7 @@ bash "$REPO/deploy/publish_frontend.sh"
 
 echo ">>> Reiniciando el backend"
 bash "$REPO/deploy/start.sh"
+
+echo ">>> Sincronizando autostart (@reboot) con el puerto actual"
+bash "$REPO/deploy/setup-autostart.sh"
 echo "✅ Actualización completada"

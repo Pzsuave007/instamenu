@@ -54,13 +54,8 @@ export function AppShell({ children }) {
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <Link to={isAdminArea ? "/admin" : "/dashboard"} className="flex items-center gap-2.5 px-6 py-6">
-        <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
-          <img src="/logo.jpg" alt="InstaMenu" className="h-full w-full object-cover" />
-        </span>
-        <span className="font-display text-lg font-semibold tracking-tight text-zinc-900">
-          Insta<span className="text-orange-500">Menu</span>
-        </span>
+      <Link to={isAdminArea ? "/admin" : "/dashboard"} className="flex items-center justify-center px-6 py-6">
+        <img src="/logo.jpg" alt="InstaMenu" className="h-16 w-16 rounded-2xl object-cover" />
       </Link>
 
       <nav className="flex-1 space-y-1 px-3" data-testid="sidebar-nav">
@@ -133,7 +128,7 @@ export function AppShell({ children }) {
           <button onClick={() => setOpen(true)} data-testid="open-sidebar" className="text-zinc-700">
             <Menu className="h-6 w-6" />
           </button>
-          <img src="/logo.jpg" alt="InstaMenu" className="h-7 w-7 rounded-lg object-cover" />
+          <img src="/logo.jpg" alt="InstaMenu" className="h-9 w-9 rounded-lg object-cover" />
           <span className="font-display font-semibold">InstaMenu</span>
         </header>
 

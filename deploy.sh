@@ -3,7 +3,7 @@ set -e
 # ============ AJUSTA ESTAS 4 VARIABLES ============
 REPO_URL="https://github.com/Pzsuave007/instamenu.git"
 CPANEL_USER="instamenuapp"
-PORT=8010
+PORT=8012
 DOMAIN="instamenuapp.com"
 # ===================================================
 REPO="/home/${CPANEL_USER}/repo"

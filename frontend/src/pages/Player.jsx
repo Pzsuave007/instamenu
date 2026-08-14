@@ -22,11 +22,12 @@ export default function Player() {
   const [code, setCode] = useState(null);
   const [config, setConfig] = useState(null);
   const [items, setItems] = useState([]);
-  const [index, setIndex] = useState(0);
+  const [step, setStep] = useState(0);
   const [online, setOnline] = useState(true);
   const versionRef = useRef(null);
   const playlistIdRef = useRef(null);
   const itemsRef = useRef([]);
+  const slotRefs = useRef([null, null]);
 
   const orgName = config?.organization?.name || readManifest()?.organization || "InstaMenu";
 
@@ -51,7 +52,7 @@ export default function Player() {
       const previous = itemsRef.current;
       itemsRef.current = prepared;
       setItems(prepared);
-      setIndex(0);
+      setStep(0);
       versionRef.current = playlist.version;
       playlistIdRef.current = playlist.playlist_id;
       writeManifest({
@@ -198,14 +199,42 @@ export default function Player() {
   }, []);
 
   // --- images advance on their duration; videos advance when they end ---
-  const current = items[index];
+  const len = items.length;
+  const current = len ? items[step % len] : null;
+  const nextItem = len ? items[(step + 1) % len] : null;
+  const front = step % 2;
+
   useEffect(() => {
-    if (!current || items.length === 0) return;
+    if (!current || len === 0) return;
     if (current.type === "video") return;
     const seconds = current.duration || config?.screen?.default_image_duration || 10;
-    const t = setTimeout(() => setIndex((i) => (i + 1) % items.length), seconds * 1000);
+    const t = setTimeout(() => setStep((s) => s + 1), seconds * 1000);
     return () => clearTimeout(t);
-  }, [current, items, config]);
+  }, [current, len, config, step]);
+
+  // Play the front video from its start; keep the back one preloaded (first frame ready).
+  // Two layers crossfade so there is no hard cut / blink between clips or on loop.
+  useEffect(() => {
+    if (len === 0) return;
+    const f = slotRefs.current[front];
+    const b = slotRefs.current[1 - front];
+    if (f && f.tagName === "VIDEO") {
+      try {
+        f.currentTime = 0;
+        const p = f.play();
+        if (p && p.catch) p.catch(() => {});
+      } catch {
+        /* autoplay guarded by muted */
+      }
+    }
+    if (b && b.tagName === "VIDEO") {
+      try {
+        b.pause();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [step, len, front]);
 
   const imageFit = config?.screen?.image_fit || "fill";
   const fitClass = imageFit === "fit" ? "object-contain" : imageFit === "stretch" ? "" : "object-cover";
@@ -242,27 +271,41 @@ export default function Player() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black" data-testid="player-stage">
-      {current.type === "video" ? (
-        <video
-          key={`${current.id}-${index}`}
-          src={current.objectUrl}
-          className={`h-full w-full ${fitClass}`}
-          autoPlay
-          muted
-          playsInline
-          onEnded={() => setIndex((i) => (i + 1) % items.length)}
-          onError={() => setIndex((i) => (i + 1) % items.length)}
-          data-testid="player-video"
-        />
-      ) : (
-        <img
-          key={`${current.id}-${index}`}
-          src={current.objectUrl}
-          alt=""
-          className={`h-full w-full ${fitClass}`}
-          data-testid="player-image"
-        />
-      )}
+      {[0, 1].map((slot) => {
+        const item = slot === front ? current : nextItem;
+        if (!item) return null;
+        const isFront = slot === front;
+        const cls = `absolute inset-0 h-full w-full transition-opacity duration-700 ease-in-out ${fitClass} ${
+          isFront ? "opacity-100" : "opacity-0"
+        }`;
+        return item.type === "video" ? (
+          <video
+            key={slot}
+            ref={(el) => {
+              slotRefs.current[slot] = el;
+            }}
+            src={item.objectUrl}
+            className={cls}
+            muted
+            playsInline
+            preload="auto"
+            onEnded={isFront ? () => setStep((s) => s + 1) : undefined}
+            onError={isFront ? () => setStep((s) => s + 1) : undefined}
+            data-testid={isFront ? "player-video" : undefined}
+          />
+        ) : (
+          <img
+            key={slot}
+            ref={(el) => {
+              slotRefs.current[slot] = el;
+            }}
+            src={item.objectUrl}
+            alt=""
+            className={cls}
+            data-testid={isFront ? "player-image" : undefined}
+          />
+        );
+      })}
       {!online ? (
         <span
           className="absolute bottom-4 right-5 h-2 w-2 rounded-full bg-amber-400/70"

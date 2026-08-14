@@ -124,6 +124,15 @@ MongoDB local (Apache proxy `/api` → uvicorn, SPA fallback, nohup + crontab @r
 - Not yet run on the real server (needs their cPanel). Verified locally: local-storage unit round-trip,
   prod build success, preview unaffected.
 
+## Python 3.9 compatibility (2026-08-14)
+Self-hosted cPanel server runs **Python 3.9**; deploy crashed on import with
+`TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`. Cause: PEP 604 unions
+(`X | None`) are evaluated at runtime and only work on 3.10+. Fixed by converting all 4 spots to
+`typing.Optional[...]`: `routers/admin.py` (`_is_online`, `list_users` org_id) and `routers/screens.py`
+(`resolve_active_playlist` return, `list_schedules` screen_id). Repo-wide grep now shows 0 `|` unions.
+Regression verified (testing agent iteration 5: 6/6 affected endpoints 200, no regression on 3.11).
+The real 3.9 fix is confirmed when the user re-runs `deploy.sh` on their server.
+
 ## Verified
 Testing agent iteration 1 (3 issues → fixed: internal media URL, dead `?auth=` fallback, IP-keyed
 lockout), iteration 2 (19/19 backend, full simplified UI journey, no bugs), iteration 3 (player).

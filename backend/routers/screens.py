@@ -1,6 +1,6 @@
 """Screens, playlists (with versioning), schedules, and resolved playback config."""
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -46,7 +46,7 @@ async def hydrate_playlist(org_id: str, playlist: dict) -> dict:
     return {**playlist, "items": items, "item_count": len(items), "total_duration": total}
 
 
-async def resolve_active_playlist(screen: dict) -> dict | None:
+async def resolve_active_playlist(screen: dict) -> Optional[dict]:
     """Schedule-aware playlist resolution in the location's own timezone.
 
     Falls back to the screen's default playlist when no time slot matches.
@@ -430,7 +430,7 @@ async def delete_playlist(playlist_id: str, force: bool = False, user: dict = De
 
 # ---------------- schedules ----------------
 @router.get("/schedules")
-async def list_schedules(screen_id: str | None = None, user: dict = Depends(require_org_user)):
+async def list_schedules(screen_id: Optional[str] = None, user: dict = Depends(require_org_user)):
     query = {"org_id": user["org_id"]}
     if screen_id:
         query["screen_id"] = screen_id

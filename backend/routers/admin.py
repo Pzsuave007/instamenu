@@ -1,5 +1,6 @@
 """Super admin: organizations, users, devices overview, subscriptions, impersonation."""
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 ONLINE_WINDOW = 120  # seconds
 
 
-def _is_online(last_seen: str | None) -> bool:
+def _is_online(last_seen: Optional[str]) -> bool:
     if not last_seen:
         return False
     return datetime.now(timezone.utc) - datetime.fromisoformat(last_seen) < timedelta(seconds=ONLINE_WINDOW)
@@ -100,7 +101,7 @@ async def delete_org(org_id: str, admin: dict = Depends(require_super_admin)):
 
 
 @router.get("/users")
-async def list_users(org_id: str | None = None, _: dict = Depends(require_super_admin)):
+async def list_users(org_id: Optional[str] = None, _: dict = Depends(require_super_admin)):
     query = {"org_id": org_id} if org_id else {}
     users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(2000)
     orgs = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)}

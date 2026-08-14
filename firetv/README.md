@@ -45,9 +45,11 @@ Open the `firetv` folder, let it sync (it generates the Gradle wrapper), then **
 
 To point the app at a different server:
 ```
-gradle :app:assembleDebug -PinstamenuApiBaseUrl=https://menus.yourdomain.com
+gradle :app:assembleDebug -PinstamenuApiBaseUrl=https://otrodominio.com
 ```
-The default is baked into `app/build.gradle.kts` (`API_BASE_URL`).
+The default is `https://instamenuapp.com`, baked into `app/build.gradle.kts` (`API_BASE_URL`).
+Como es un **dominio** (no una IP), si algún día mueves el backend a otro servidor solo repuntas el
+DNS de `instamenuapp.com` y la app sigue funcionando sin reinstalar ni recompilar nada.
 
 ## Install on a Fire TV Stick
 
@@ -65,7 +67,7 @@ The default is baked into `app/build.gradle.kts` (`API_BASE_URL`).
 
 ## Try it without an APK
 
-The same behaviour runs in a browser at `https://<your-instamenu-url>/player` — open that on the
+The same behaviour runs in a browser at `https://instamenuapp.com/player` — open that on the
 Fire TV's Silk browser (or any screen) and it pairs and plays with offline caching via the Cache API.
 Handy for testing and for TVs that are not Fire TV.
 

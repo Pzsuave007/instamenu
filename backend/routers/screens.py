@@ -296,6 +296,27 @@ async def set_screen_content(screen_id: str, payload: ScreenContentIn, user: dic
     return await hydrate_playlist(user["org_id"], fresh)
 
 
+@router.post("/screens/{screen_id}/refresh")
+async def force_refresh(screen_id: str, user: dict = Depends(require_org_user)):
+    """Force TVs on this screen to re-download on their next check-in (<= heartbeat interval)."""
+    screen = await db.screens.find_one({"id": screen_id, "org_id": user["org_id"]}, {"_id": 0})
+    if not screen:
+        raise HTTPException(status_code=404, detail="Screen not found")
+    playlist_ids = set()
+    if screen.get("playlist_id"):
+        playlist_ids.add(screen["playlist_id"])
+    async for sched in db.schedules.find({"screen_id": screen_id, "org_id": user["org_id"]}, {"_id": 0}):
+        if sched.get("playlist_id"):
+            playlist_ids.add(sched["playlist_id"])
+    for pid in playlist_ids:
+        await db.playlists.update_one(
+            {"id": pid, "org_id": user["org_id"]},
+            {"$set": {"updated_at": now_iso()}, "$inc": {"version": 1}},
+        )
+    return {"ok": True, "refreshed_playlists": len(playlist_ids)}
+
+
+
 @router.patch("/screens/{screen_id}")
 async def update_screen(screen_id: str, payload: ScreenUpdate, user: dict = Depends(require_org_user)):
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}

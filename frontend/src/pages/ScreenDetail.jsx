@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
-import { ArrowLeft, Film, FolderOpen, GripVertical, Loader2, Settings2, Trash2, Tv, Upload } from "lucide-react";
+import { ArrowLeft, Film, FolderOpen, GripVertical, Loader2, RefreshCw, Settings2, Trash2, Tv, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ScheduleCard } from "@/components/ScheduleCard";
 import { StatusDot } from "@/components/StatusDot";
@@ -27,7 +27,20 @@ export default function ScreenDetail() {
   const [playlists, setPlaylists] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [picked, setPicked] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const fileRef = useRef(null);
+
+  const pushUpdate = async () => {
+    setRefreshing(true);
+    try {
+      await api.post(`/screens/${screenId}/refresh`);
+      toast.success("Update sent — your TVs will refresh within a minute");
+    } catch (e) {
+      toast.error(apiError(e));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const applyPlaylist = (playlist) =>
     setItems((playlist?.items || []).map((i) => ({ media_id: i.media_id, duration: i.duration, media: i.media })));
@@ -183,6 +196,16 @@ export default function ScreenDetail() {
           >
             {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
             {uploading ? "Uploading…" : "Upload new"}
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-full px-5"
+            onClick={pushUpdate}
+            disabled={refreshing}
+            data-testid="screen-refresh-button"
+          >
+            {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {refreshing ? "Sending…" : "Update TVs"}
           </Button>
           <Button
             variant="outline"

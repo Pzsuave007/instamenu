@@ -125,18 +125,19 @@ async def device_playlist(request: Request, device: dict = Depends(get_device)):
     items = []
     for item in hydrated["items"]:
         media = item["media"]
+        is_url = media.get("kind") == "url"
         items.append(
             {
                 "id": media["id"],
                 "position": item["position"],
                 "type": media["kind"],
                 "filename": media["name"],
-                "url": _media_url(request, media["id"], token),
+                "url": media["url"] if is_url else _media_url(request, media["id"], token),
                 "content_type": media["content_type"],
                 "size": media.get("size"),
                 "width": media.get("width"),
                 "height": media.get("height"),
-                "duration": item["duration"] if media["kind"] == "image" else None,
+                "duration": item["duration"] if media["kind"] in ("image", "url") else None,
                 "cache_key": f"{media['id']}:{media.get('size')}",
             }
         )

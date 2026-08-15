@@ -1,9 +1,11 @@
 """Media library: upload, list, rename, soft-delete, protected file serving."""
 import io
+import re
 import struct
 import uuid
 from typing import Optional
 
+import requests
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 
 from core.db import db
@@ -119,6 +121,60 @@ async def upload_media(
 ):
     doc = await save_upload_file(file, user["org_id"], user["id"], location_id)
     return {**doc, "used_in": []}
+
+
+def normalize_web_link(url: str) -> str:
+    """Turn a Canva share/short link into its embeddable (iframe-able) form."""
+    u = (url or "").strip()
+    if not u:
+        return u
+    if not u.startswith(("http://", "https://")):
+        u = "https://" + u
+    if "canva" in u:
+        final = u
+        try:
+            r = requests.head(u, allow_redirects=True, timeout=10)
+            final = r.url or u
+        except Exception:
+            final = u
+        m = re.search(r"/design/([^/?#]+)/([^/?#]+)", final)
+        if m:
+            return f"https://www.canva.com/design/{m.group(1)}/{m.group(2)}/view?embed"
+        m = re.search(r"/design/([^/?#]+)", final)
+        if m:
+            return f"https://www.canva.com/design/{m.group(1)}/view?embed"
+    return u
+
+
+@router.post("/link", status_code=201)
+async def create_web_link(payload: dict, user: dict = Depends(require_org_user)):
+    """Add a live web page (e.g. a Canva design) as a content item — no file upload."""
+    name = (payload.get("name") or "").strip()
+    raw_url = (payload.get("url") or "").strip()
+    if not raw_url:
+        raise HTTPException(status_code=400, detail="A URL is required")
+    embed_url = normalize_web_link(raw_url)
+    doc = {
+        "id": new_id(),
+        "org_id": user["org_id"],
+        "location_id": None,
+        "name": name or "Web link",
+        "storage_path": None,
+        "url": embed_url,
+        "source_url": raw_url,
+        "content_type": "text/html",
+        "kind": "url",
+        "ext": None,
+        "size": 0,
+        "width": None,
+        "height": None,
+        "is_deleted": False,
+        "created_at": now_iso(),
+        "uploaded_by": user["id"],
+    }
+    await db.media.insert_one(dict(doc))
+    return {**doc, "used_in": []}
+
 
 
 @router.patch("/{media_id}")

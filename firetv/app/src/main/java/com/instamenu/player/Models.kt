@@ -70,4 +70,4 @@ data class HeartbeatResponse(
 )
 
 /** A playlist whose assets are all present on local storage, ready to play. */
-data class LocalItem(val item: PlaylistItem, val file: java.io.File)
+data class LocalItem(val item: PlaylistItem, val file: java.io.File?)

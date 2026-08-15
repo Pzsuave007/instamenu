@@ -24,6 +24,10 @@ class MediaCache(context: android.content.Context, private val api: ApiClient) {
     fun prepare(playlist: Playlist): List<LocalItem>? {
         val prepared = ArrayList<LocalItem>(playlist.items.size)
         for (item in playlist.items) {
+            if (item.type == "url") {          // web links (Canva, etc.) stream live, nothing to cache
+                prepared.add(LocalItem(item, null))
+                continue
+            }
             val target = fileFor(item)
             if (!target.exists() || target.length() == 0L) {
                 val ok = runCatching { api.download(item.url, target) }.getOrDefault(false)
@@ -41,5 +45,8 @@ class MediaCache(context: android.content.Context, private val api: ApiClient) {
     }
 
     fun localItemsFor(playlist: Playlist): List<LocalItem> =
-        playlist.items.mapNotNull { item -> fileFor(item).takeIf { it.exists() }?.let { LocalItem(item, it) } }
+        playlist.items.mapNotNull { item ->
+            if (item.type == "url") LocalItem(item, null)
+            else fileFor(item).takeIf { it.exists() }?.let { LocalItem(item, it) }
+        }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Film, Image as ImageIcon, MonitorPlay, Pencil, Trash2, Upload } from "lucide-react";
+import { Film, Image as ImageIcon, Link2, MonitorPlay, Pencil, Trash2, Upload } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,10 @@ export default function MediaLibrary() {
   const [preview, setPreview] = useState(null);
   const [assigning, setAssigning] = useState(null);
   const [screens, setScreens] = useState([]);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [savingLink, setSavingLink] = useState(false);
   const inputRef = useRef(null);
 
   const openAssign = (item) => {
@@ -37,6 +41,23 @@ export default function MediaLibrary() {
   };
 
   const load = () => api.get("/media").then((r) => setMedia(r.data)).catch((e) => toast.error(apiError(e)));
+
+  const addLink = async () => {
+    if (!linkUrl.trim()) return;
+    setSavingLink(true);
+    try {
+      await api.post("/media/link", { name: linkName, url: linkUrl });
+      toast.success("Web link added to your library");
+      setLinkOpen(false);
+      setLinkName("");
+      setLinkUrl("");
+      load();
+    } catch (e) {
+      toast.error(apiError(e));
+    } finally {
+      setSavingLink(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -103,6 +124,14 @@ export default function MediaLibrary() {
           data-testid="media-file-input"
         />
         <Button
+          variant="outline"
+          className="mr-2 rounded-full px-5"
+          onClick={() => setLinkOpen(true)}
+          data-testid="add-web-link-button"
+        >
+          <Link2 className="mr-2 h-4 w-4" /> Add Web Link
+        </Button>
+        <Button
           className="rounded-full px-5"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
@@ -111,6 +140,33 @@ export default function MediaLibrary() {
           <Upload className="mr-2 h-4 w-4" /> {uploading ? "Uploading…" : "Upload Media"}
         </Button>
       </PageHeader>
+
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent data-testid="web-link-dialog">
+          <DialogHeader>
+            <DialogTitle>Add a web link (e.g. Canva)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="Breakfast Canva menu" data-testid="web-link-name" />
+            </div>
+            <div>
+              <Label>URL</Label>
+              <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://canva.link/..." data-testid="web-link-url" />
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Pega el enlace de Canva (compartir → cualquier link). Lo convertimos al formato incrustable automáticamente. Los cambios que hagas en Canva se reflejan solos en la tele.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-full" onClick={() => setLinkOpen(false)}>Cancel</Button>
+            <Button className="rounded-full" onClick={addLink} disabled={savingLink} data-testid="web-link-save">
+              {savingLink ? "Adding…" : "Add link"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {media.length === 0 ? (
         <EmptyState
@@ -140,6 +196,11 @@ export default function MediaLibrary() {
                       <Film className="h-8 w-8 text-white/90" />
                     </span>
                   </>
+                ) : m.kind === "url" ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-orange-500 to-rose-600 text-white">
+                    <Link2 className="h-8 w-8" />
+                    <span className="text-xs font-medium opacity-90">Web link</span>
+                  </div>
                 ) : (
                   <img
                     src={mediaUrl(m.id)}
@@ -151,7 +212,7 @@ export default function MediaLibrary() {
               <div className="p-4">
                 <p className="truncate text-sm font-medium text-zinc-900">{m.name}</p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {m.ext.toUpperCase()} · {formatBytes(m.size)}
+                  {m.kind === "url" ? "WEB LINK" : `${(m.ext || "").toUpperCase()} · ${formatBytes(m.size)}`}
                   {m.width ? ` · ${m.width}×${m.height}` : ""}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-400">

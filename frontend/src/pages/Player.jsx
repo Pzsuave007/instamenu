@@ -207,6 +207,7 @@ export default function Player() {
   useEffect(() => {
     if (!current || len === 0) return;
     if (current.type === "video") return;
+    if (current.type === "url" && len <= 1) return; // a lone web link loops on its own
     const seconds = current.duration || config?.screen?.default_image_duration || 10;
     const t = setTimeout(() => setStep((s) => s + 1), seconds * 1000);
     return () => clearTimeout(t);
@@ -292,6 +293,15 @@ export default function Player() {
             onEnded={isFront ? () => setStep((s) => s + 1) : undefined}
             onError={isFront ? () => setStep((s) => s + 1) : undefined}
             data-testid={isFront ? "player-video" : undefined}
+          />
+        ) : item.type === "url" ? (
+          <iframe
+            key={slot}
+            title={item.filename || "web"}
+            src={item.objectUrl}
+            className={`${cls} border-0`}
+            allow="autoplay; fullscreen"
+            data-testid={isFront ? "player-iframe" : undefined}
           />
         ) : (
           <img

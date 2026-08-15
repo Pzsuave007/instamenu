@@ -6,6 +6,8 @@ import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
+import android.view.ViewGroup
+import android.webkit.WebView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -180,7 +182,11 @@ class PlayerActivity : AppCompatActivity() {
             val snapshot = items
             if (snapshot.isEmpty()) return
             val entry = snapshot[index % snapshot.size]
-            if (entry.item.type == "video") playVideo(entry) else showImage(entry)
+            when (entry.item.type) {
+                "video" -> playVideo(entry)
+                "url" -> showUrl(entry)
+                else -> showImage(entry)
+            }
             index += 1
         }
     }
@@ -196,6 +202,7 @@ class PlayerActivity : AppCompatActivity() {
     private suspend fun showImage(entry: LocalItem) {
         withContext(Dispatchers.Main) {
             exo?.stop()
+            webView?.visibility = View.GONE
             playerView.visibility = View.GONE
             imageView.visibility = View.VISIBLE
             applyFit(imageView)
@@ -204,10 +211,49 @@ class PlayerActivity : AppCompatActivity() {
         delay(((entry.item.duration ?: 10).coerceAtLeast(1)) * 1000L)
     }
 
+    private var webView: WebView? = null
+    private var currentUrl: String? = null
+
+    private fun ensureWebView() {
+        if (webView != null) return
+        val wv = WebView(this)
+        wv.settings.javaScriptEnabled = true
+        wv.settings.domStorageEnabled = true
+        wv.settings.mediaPlaybackRequiresUserGesture = false
+        wv.settings.loadWithOverviewMode = true
+        wv.settings.useWideViewPort = true
+        wv.setBackgroundColor(android.graphics.Color.BLACK)
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        root.addView(
+            wv,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        webView = wv
+    }
+
+    private suspend fun showUrl(entry: LocalItem) {
+        withContext(Dispatchers.Main) {
+            exo?.stop()
+            playerView.visibility = View.GONE
+            imageView.visibility = View.GONE
+            ensureWebView()
+            webView?.visibility = View.VISIBLE
+            val url = entry.item.url
+            if (url.isNotEmpty() && url != currentUrl) {
+                currentUrl = url
+                webView?.loadUrl(url)
+            }
+        }
+        // A lone web link stays put (Canva loops itself); in a multi-item playlist it rotates.
+        val secs = (entry.item.duration ?: 30).coerceAtLeast(1)
+        delay(secs * 1000L)
+    }
+
     private suspend fun playVideo(entry: LocalItem) {
         val finished = kotlinx.coroutines.CompletableDeferred<Unit>()
         withContext(Dispatchers.Main) {
             imageView.visibility = View.GONE
+            webView?.visibility = View.GONE
             playerView.visibility = View.VISIBLE
             val player = exo ?: return@withContext
             player.clearMediaItems()

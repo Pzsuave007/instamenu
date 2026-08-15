@@ -86,7 +86,11 @@ export async function cacheAsset(url) {
 export async function prepareItems(items) {
   const prepared = [];
   for (const item of items) {
-    prepared.push({ ...item, objectUrl: await cacheAsset(item.url) });
+    if (item.type === "url") {
+      prepared.push({ ...item, objectUrl: item.url });
+    } else {
+      prepared.push({ ...item, objectUrl: await cacheAsset(item.url) });
+    }
   }
   return prepared;
 }

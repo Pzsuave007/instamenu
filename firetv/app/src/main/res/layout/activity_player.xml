@@ -40,8 +40,8 @@
         android:visibility="gone">
 
         <ImageView
-            android:layout_width="200dp"
-            android:layout_height="200dp"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
             android:src="@drawable/app_logo"
             android:contentDescription="@string/brand"
             android:scaleType="fitCenter" />
@@ -49,15 +49,15 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
             android:text="@string/connect_this_tv"
             android:textColor="#FFFFFF"
-            android:textSize="34sp" />
+            android:textSize="30sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="56dp"
+            android:layout_marginTop="28dp"
             android:letterSpacing="0.25"
             android:text="@string/pairing_code_label"
             android:textColor="#71717A"
@@ -67,17 +67,19 @@
             android:id="@+id/pairing_code"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:letterSpacing="0.2"
             android:text="@string/pairing_placeholder"
             android:textColor="#FFFFFF"
-            android:textSize="76sp"
+            android:textSize="64sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="56dp"
+            android:layout_marginTop="24dp"
+            android:paddingStart="80dp"
+            android:paddingEnd="80dp"
             android:gravity="center"
             android:text="@string/pairing_help"
             android:textColor="#A1A1AA"

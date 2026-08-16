@@ -53,14 +53,10 @@ export const TvPreview = ({ items = [], imageFit = "fit", playlistName, testId =
               data-testid="tv-preview-video"
             />
           ) : current.media?.kind === "url" ? (
-            <iframe
-              key={current.media.id}
-              title={current.media.name || "web"}
-              src={current.media.url}
-              className="h-full w-full border-0"
-              allow="autoplay; fullscreen"
-              data-testid="tv-preview-iframe"
-            />
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-zinc-800 text-zinc-400" data-testid="tv-preview-url-unsupported">
+              <Tv className="h-8 w-8" />
+              <p className="text-xs">Web links are no longer supported</p>
+            </div>
           ) : (
             <img
               key={current.media.id}

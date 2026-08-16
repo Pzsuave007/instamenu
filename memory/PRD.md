@@ -140,9 +140,14 @@ Manually verified: pairing code appears on `/player`, dashboard pairing flips th
 no reload, device reports `playing` with the right playlist version, no 429s, media round-trips.
 
 ## Recent fixes (2026-06)
-- `TvPreview.jsx` (dashboard preview) now renders Canva/web links (`media.kind === "url"`) in an
-  `<iframe>` and hides the "Slide X of Y" overlay for URLs. Verified via screenshot in preview: Canva
-  design renders correctly, overlay hidden. Cleaned up test media afterward.
+- **Canva/web-link feature REMOVED from the webapp** (user decision: avoid third-party dependency,
+  keep only self-hosted videos/images for stability). Changes are frontend-only, APK untouched:
+  - `MediaLibrary.jsx`: removed "Add Web Link" button, dialog, `addLink` handler and link state.
+    Card display for existing `kind==="url"` items retained so leftovers can still be deleted.
+  - `TvPreview.jsx`: `kind==="url"` branch now renders a graceful placeholder
+    (`tv-preview-url-unsupported`, "Web links are no longer supported") instead of an `<iframe>`
+    (the iframe was causing the dashboard preview / page to crash). "Slide X of Y" hidden for url.
+  - Verified by testing_agent iteration 6: 100% frontend PASS, no iframe rendered, no crash.
 
 ## Backlog
 ### P1

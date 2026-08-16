@@ -139,6 +139,11 @@ lockout), iteration 2 (19/19 backend, full simplified UI journey, no bugs), iter
 Manually verified: pairing code appears on `/player`, dashboard pairing flips the TV to content with
 no reload, device reports `playing` with the right playlist version, no 429s, media round-trips.
 
+## Recent fixes (2026-06)
+- `TvPreview.jsx` (dashboard preview) now renders Canva/web links (`media.kind === "url"`) in an
+  `<iframe>` and hides the "Slide X of Y" overlay for URLs. Verified via screenshot in preview: Canva
+  design renders correctly, overlay hidden. Cleaned up test media afterward.
+
 ## Backlog
 ### P1
 - Legacy migration script (legacy restaurant → org/location, screens, images → media + items).

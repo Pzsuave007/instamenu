@@ -52,6 +52,15 @@ export const TvPreview = ({ items = [], imageFit = "fit", playlistName, testId =
               onEnded={() => step(1)}
               data-testid="tv-preview-video"
             />
+          ) : current.media?.kind === "url" ? (
+            <iframe
+              key={current.media.id}
+              title={current.media.name || "web"}
+              src={current.media.url}
+              className="h-full w-full border-0"
+              allow="autoplay; fullscreen"
+              data-testid="tv-preview-iframe"
+            />
           ) : (
             <img
               key={current.media.id}
@@ -64,9 +73,11 @@ export const TvPreview = ({ items = [], imageFit = "fit", playlistName, testId =
           {current ? (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/70 to-transparent p-4">
               <span className="truncate text-xs font-medium text-white/90">{current.media?.name}</span>
-              <span className="shrink-0 text-xs text-white/70" data-testid="tv-preview-position">
-                Slide {index + 1} of {total}
-              </span>
+              {current.media?.kind !== "url" ? (
+                <span className="shrink-0 text-xs text-white/70" data-testid="tv-preview-position">
+                  Slide {index + 1} of {total}
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>

@@ -34,16 +34,27 @@ async def dashboard(user: dict = Depends(require_org_user)):
     for s in screens:
         dev = dev_by_screen.get(s["id"])
         pl = await db.playlists.find_one({"id": s.get("playlist_id")}, {"_id": 0, "items": 1, "name": 1}) if s.get("playlist_id") else None
-        thumb = (pl.get("items") or [{}])[0].get("media_id") if pl and pl.get("items") else None
-        thumb_media = await db.media.find_one({"id": thumb}, {"_id": 0, "kind": 1}) if thumb else None
+        pl_items = (pl.get("items") if pl else None) or []
+        item_media_ids = [i.get("media_id") for i in pl_items if i.get("media_id")]
+        kinds = {}
+        if item_media_ids:
+            async for m in db.media.find({"id": {"$in": item_media_ids}}, {"_id": 0, "id": 1, "kind": 1}):
+                kinds[m["id"]] = m.get("kind")
+        preview_items = [
+            {"media_id": i["media_id"], "kind": kinds.get(i["media_id"]), "duration": i.get("duration", 10)}
+            for i in pl_items
+            if i.get("media_id") and kinds.get(i["media_id"]) in ("video", "image")
+        ]
+        thumb = pl_items[0].get("media_id") if pl_items else None
         screen_rows.append(
             {
                 **s,
                 "location_name": loc_names.get(s.get("location_id")),
                 "playlist_name": pl_names.get(s.get("playlist_id")),
-                "item_count": len(pl.get("items", [])) if pl else 0,
+                "item_count": len(pl_items),
                 "thumbnail_media_id": thumb,
-                "thumbnail_kind": (thumb_media or {}).get("kind"),
+                "thumbnail_kind": kinds.get(thumb),
+                "preview_items": preview_items,
                 "device_name": dev["name"] if dev else None,
                 "last_seen": dev.get("last_seen") if dev else None,
                 "online": is_online(dev.get("last_seen")) if dev else False,

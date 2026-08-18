@@ -140,14 +140,20 @@ Manually verified: pairing code appears on `/player`, dashboard pairing flips th
 no reload, device reports `playing` with the right playlist version, no 429s, media round-trips.
 
 ## Recent fixes (2026-06)
-- **Canva/web-link feature REMOVED from the webapp** (user decision: avoid third-party dependency,
-  keep only self-hosted videos/images for stability). Changes are frontend-only, APK untouched:
-  - `MediaLibrary.jsx`: removed "Add Web Link" button, dialog, `addLink` handler and link state.
-    Card display for existing `kind==="url"` items retained so leftovers can still be deleted.
-  - `TvPreview.jsx`: `kind==="url"` branch now renders a graceful placeholder
-    (`tv-preview-url-unsupported`, "Web links are no longer supported") instead of an `<iframe>`
-    (the iframe was causing the dashboard preview / page to crash). "Slide X of Y" hidden for url.
-  - Verified by testing_agent iteration 6: 100% frontend PASS, no iframe rendered, no crash.
+- **Restaurant Showroom en el Dashboard** (herramienta de venta): sección "Así se verá en tu
+  restaurante" que muestra las TVs del cliente montadas en una pared ilustrada de restaurante,
+  reproduciendo su contenido REAL. Se auto-ajusta a la cantidad de pantallas (1, 2, 3+).
+  - Nuevo componente `frontend/src/components/RestaurantShowroom.jsx` + `ShowroomTv` (video en loop
+    si es único / avanza al terminar si hay varios; imágenes rotan por su duración).
+  - Fondo ilustrado self-hosted en `frontend/src/assets/showroom-wall.jpg` (empaquetado en el build).
+  - Backend `org.py /dashboard`: cada screen ahora incluye `preview_items`
+    [{media_id, kind, duration}] (solo video/image).
+  - Backend `media.py _serve`: **soporte de HTTP Range (206 Partial Content)** para streaming de
+    video correcto en navegadores (antes anunciaba Accept-Ranges pero devolvía el archivo completo).
+    No-range sigue devolviendo 200 completo (player/miniaturas intactos); range inválido → 416.
+  - Nota: en el screenshot tool los videos H.264 salen negros porque su Chromium no trae el codec;
+    en navegadores reales y Fire TV reproducen bien (verificado: imágenes renderizan, range 206 OK).
+- Canva/web-link removido del webapp (ver historial previo).
 
 ## Backlog
 ### P1

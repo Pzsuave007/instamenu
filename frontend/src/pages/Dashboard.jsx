@@ -4,6 +4,7 @@ import { Image, Monitor, Plus, Tv } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { StatusDot } from "@/components/StatusDot";
 import { ScreenThumb } from "@/components/ScreenThumb";
+import { RestaurantShowroom } from "@/components/RestaurantShowroom";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,7 +50,9 @@ export default function Dashboard() {
           testId="dashboard-empty-screens"
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" data-testid="dashboard-screens-list">
+        <>
+          <RestaurantShowroom screens={data?.screens || []} />
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" data-testid="dashboard-screens-list">
           {(data?.screens || []).map((s) => (
             <Link key={s.id} to={`/screens/${s.id}`} data-testid={`dashboard-screen-${s.id}`}>
               <Card className="group h-full overflow-hidden border-zinc-200 shadow-sm duration-200 hover:border-orange-300 hover:shadow-md">
@@ -70,6 +73,7 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+        </>
       )}
 
       {stats ? (

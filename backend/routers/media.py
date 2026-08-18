@@ -210,7 +210,7 @@ async def delete_media(media_id: str, force: bool = False, user: dict = Depends(
     return {"ok": True}
 
 
-async def _serve(media_id: str, org_id: Optional[str] = None):
+async def _serve(media_id: str, org_id: Optional[str] = None, range_header: Optional[str] = None):
     query = {"id": media_id, "is_deleted": False}
     if org_id:
         query["org_id"] = org_id
@@ -221,10 +221,35 @@ async def _serve(media_id: str, org_id: Optional[str] = None):
         data, content_type = get_object(media["storage_path"])
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Storage read failed: {exc}")
+    media_type = media.get("content_type", content_type)
+    file_size = len(data)
+    base_headers = {"Cache-Control": "private, max-age=86400", "Accept-Ranges": "bytes"}
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header.strip())
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2)) if m.group(2) else file_size - 1
+            end = min(end, file_size - 1)
+            if start >= file_size or start > end:
+                return Response(
+                    status_code=416,
+                    headers={**base_headers, "Content-Range": f"bytes */{file_size}"},
+                )
+            chunk = data[start : end + 1]
+            return Response(
+                content=chunk,
+                status_code=206,
+                media_type=media_type,
+                headers={
+                    **base_headers,
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Content-Length": str(len(chunk)),
+                },
+            )
     return Response(
         content=data,
-        media_type=media.get("content_type", content_type),
-        headers={"Cache-Control": "private, max-age=86400", "Accept-Ranges": "bytes"},
+        media_type=media_type,
+        headers={**base_headers, "Content-Length": str(file_size)},
     )
 
 
@@ -232,14 +257,15 @@ async def _serve(media_id: str, org_id: Optional[str] = None):
 async def media_file(media_id: str, request: Request, auth: Optional[str] = Query(None)):
     """Serve media to authenticated dashboard users or paired devices."""
     device_token = request.headers.get("X-Device-Token") or request.query_params.get("device_token")
+    range_header = request.headers.get("range")
     if device_token:
         device = await db.devices.find_one({"device_token": device_token}, {"_id": 0})
         if not device:
             raise HTTPException(status_code=401, detail="Invalid device token")
-        return await _serve(media_id, device["org_id"])
+        return await _serve(media_id, device["org_id"], range_header)
     if auth:
         user = await user_from_token(auth)
     else:
         user = await get_current_user(request)
     org_id = None if user["role"] == "super_admin" and not user.get("org_id") else user.get("org_id")
-    return await _serve(media_id, org_id)
+    return await _serve(media_id, org_id, range_header)

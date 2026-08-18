@@ -52,7 +52,7 @@ const ShowroomTv = ({ screen, style }) => {
             )
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-zinc-800 text-[10px] text-zinc-500">
-              Sin contenido
+              No content
             </div>
           )}
           {/* subtle screen glare */}
@@ -85,9 +85,9 @@ export const RestaurantShowroom = ({ screens = [], testId = "restaurant-showroom
     <div className="mb-10" data-testid={testId}>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="font-display text-xl font-semibold text-zinc-900">Así se verá en tu restaurante</h2>
+          <h2 className="font-display text-xl font-semibold text-zinc-900">How it looks in your restaurant</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Una vista realista de tus televisiones ya instaladas, reproduciendo tu contenido actual.
+            A realistic preview of your TVs already installed, playing your current content.
           </p>
         </div>
       </div>

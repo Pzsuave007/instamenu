@@ -12,8 +12,8 @@ android {
         applicationId = "com.instamenu.player"
         minSdk = 22          // Fire TV Stick 1st gen and newer
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         // Point the app at your InstaMenu server. Override per build if you self-host.
         buildConfigField(

@@ -140,7 +140,17 @@ Manually verified: pairing code appears on `/player`, dashboard pairing flips th
 no reload, device reports `playing` with the right playlist version, no 429s, media round-trips.
 
 ## Recent fixes (2026-06)
-- **Restaurant Showroom en el Dashboard** (herramienta de venta): sección "Así se verá en tu
+- **Fire TV banner arreglado**: el launcher de Fire TV usa un banner apaisado (320x180+), no un
+  ícono cuadrado. Antes `AndroidManifest` usaba `android:banner="@drawable/app_logo"` (logo cuadrado
+  sobre negro → se veía mal). Se creó `firetv/app/src/main/res/drawable/banner.png` (640x360,
+  compuesto con PIL usando el logo real + wordmark "InstaMenu" + tagline "Digital Menu Boards",
+  fondo negro con glow naranja) y el manifest ahora apunta a `@drawable/banner`. El GitHub Action
+  `firetv-apk.yml` reconstruye el APK al hacer push que toque `firetv/**` y lo publica en el release
+  `firetv-latest`. Verificación final del banner: en el propio Fire TV tras reinstalar el APK.
+- **Restaurant Showroom en el Dashboard** (ver historial).
+
+## Backlog
+### P1
   restaurante" que muestra las TVs del cliente montadas en una pared ilustrada de restaurante,
   reproduciendo su contenido REAL. Se auto-ajusta a la cantidad de pantallas (1, 2, 3+).
   - Nuevo componente `frontend/src/components/RestaurantShowroom.jsx` + `ShowroomTv` (video en loop

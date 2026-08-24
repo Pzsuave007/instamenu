@@ -140,7 +140,25 @@ Manually verified: pairing code appears on `/player`, dashboard pairing flips th
 no reload, device reports `playing` with the right playlist version, no 429s, media round-trips.
 
 ## Recent fixes (2026-06)
-- **Fire TV banner arreglado**: el launcher de Fire TV usa un banner apaisado (320x180+), no un
+- **CRÍTICO — RCA "MongoDB compartido se cae y tumba TODAS las webapps":** el endpoint que sirve
+  media hacía `src.read_bytes()` (cargaba el video COMPLETO en RAM por petición). Con Range que se
+  agregó antes, cada petición de rango de un video (los reproductores hacen decenas) cargaba los
+  22MB enteros → picos de RAM → el OOM killer del kernel mataba `mongod` (proceso más grande) →
+  todas las apps del VPS perdían login. Empezó justo con InstaMenu por esto.
+  - FIX (código): `media.py _serve` + `storage.py local_file()` ahora **transmiten por chunks de
+    256KB desde disco** (StreamingResponse) para el backend `local`. Memoria del backend queda plana
+    (~KB) sin importar el tamaño. Verificado con unit test (rango medio/completo/abierto/inválido,
+    byte-exact) y regresión del path emergent en preview (206/200). Requiere deploy (git pull + deploy.sh).
+  - FIX (servidor, defensa en profundidad): `deploy/harden_mongo.sh` — mongod con Restart=always,
+    enable on boot, `OOMScoreAdjust=-500` (el kernel mata el backend antes que mongod), swap 2GB,
+    límite de WiredTiger cache (~35% RAM), swappiness=10, y watchdog por cron cada minuto.
+    `deploy/diagnose_server.sh` — diagnóstico solo-lectura (RAM/OOM/logs/estado mongod).
+    Se corren en el VPS como root (no puedo ejecutarlos yo).
+- **Fire TV banner** arreglado + versión APK 1.1.0 (ver historial).
+- **Restaurant Showroom** en el Dashboard (ver historial).
+
+## Backlog
+### P1
   ícono cuadrado. Antes `AndroidManifest` usaba `android:banner="@drawable/app_logo"` (logo cuadrado
   sobre negro → se veía mal). Se creó `firetv/app/src/main/res/drawable/banner.png` (640x360,
   compuesto con PIL usando el logo real + wordmark "InstaMenu" + tagline "Digital Menu Boards",

@@ -43,6 +43,16 @@ def _local_get(path: str):
     return src.read_bytes(), ctype
 
 
+def local_file(path: str):
+    """Return (Path, size_bytes, content_type) for a local file WITHOUT loading it into memory.
+    Used to stream large media (video) in chunks and keep backend RAM flat."""
+    src = MEDIA_DIR / path
+    if not src.exists():
+        raise FileNotFoundError(path)
+    ctype = mimetypes.guess_type(str(src))[0] or "application/octet-stream"
+    return src, src.stat().st_size, ctype
+
+
 # ---------------- Emergent object storage backend ----------------
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"

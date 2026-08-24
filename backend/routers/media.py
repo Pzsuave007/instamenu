@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Res
 from core.db import db
 from core.deps import get_current_user, require_org_user, user_from_token
 from core.models import MediaUpdate, new_id, now_iso
-from core.storage import APP_PREFIX, get_object, put_object
+from core.storage import APP_PREFIX, get_object, put_object, local_file, STORAGE_BACKEND
+from fastapi.responses import StreamingResponse
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -210,6 +211,31 @@ async def delete_media(media_id: str, force: bool = False, user: dict = Depends(
     return {"ok": True}
 
 
+def _parse_range(range_header: str, file_size: int):
+    m = re.match(r"bytes=(\d+)-(\d*)", range_header.strip())
+    if not m:
+        return None
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else file_size - 1
+    end = min(end, file_size - 1)
+    if start >= file_size or start > end:
+        return "invalid"
+    return start, end
+
+
+def _iter_file(path, start: int, end: int, chunk_size: int = 262144):
+    """Stream a byte range straight from disk, 256KB at a time (constant memory)."""
+    with open(path, "rb") as f:
+        f.seek(start)
+        remaining = end - start + 1
+        while remaining > 0:
+            data = f.read(min(chunk_size, remaining))
+            if not data:
+                break
+            remaining -= len(data)
+            yield data
+
+
 async def _serve(media_id: str, org_id: Optional[str] = None, range_header: Optional[str] = None):
     query = {"id": media_id, "is_deleted": False}
     if org_id:
@@ -217,24 +243,50 @@ async def _serve(media_id: str, org_id: Optional[str] = None, range_header: Opti
     media = await db.media.find_one(query, {"_id": 0})
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
+    base_headers = {"Cache-Control": "private, max-age=86400", "Accept-Ranges": "bytes"}
+
+    # Local disk (production/self-hosted): STREAM from disk, never load whole file in RAM.
+    if STORAGE_BACKEND == "local":
+        try:
+            src, file_size, ctype = local_file(media["storage_path"])
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Media file missing")
+        media_type = media.get("content_type") or ctype
+        if range_header:
+            rng = _parse_range(range_header, file_size)
+            if rng == "invalid":
+                return Response(status_code=416, headers={**base_headers, "Content-Range": f"bytes */{file_size}"})
+            if rng:
+                start, end = rng
+                return StreamingResponse(
+                    _iter_file(src, start, end),
+                    status_code=206,
+                    media_type=media_type,
+                    headers={
+                        **base_headers,
+                        "Content-Range": f"bytes {start}-{end}/{file_size}",
+                        "Content-Length": str(end - start + 1),
+                    },
+                )
+        return StreamingResponse(
+            _iter_file(src, 0, file_size - 1),
+            media_type=media_type,
+            headers={**base_headers, "Content-Length": str(file_size)},
+        )
+
+    # Emergent object storage (Emergent preview only): fetched over HTTP into memory.
     try:
         data, content_type = get_object(media["storage_path"])
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Storage read failed: {exc}")
     media_type = media.get("content_type", content_type)
     file_size = len(data)
-    base_headers = {"Cache-Control": "private, max-age=86400", "Accept-Ranges": "bytes"}
     if range_header:
-        m = re.match(r"bytes=(\d+)-(\d*)", range_header.strip())
-        if m:
-            start = int(m.group(1))
-            end = int(m.group(2)) if m.group(2) else file_size - 1
-            end = min(end, file_size - 1)
-            if start >= file_size or start > end:
-                return Response(
-                    status_code=416,
-                    headers={**base_headers, "Content-Range": f"bytes */{file_size}"},
-                )
+        rng = _parse_range(range_header, file_size)
+        if rng == "invalid":
+            return Response(status_code=416, headers={**base_headers, "Content-Range": f"bytes */{file_size}"})
+        if rng:
+            start, end = rng
             chunk = data[start : end + 1]
             return Response(
                 content=chunk,

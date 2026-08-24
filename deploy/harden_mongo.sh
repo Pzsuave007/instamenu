@@ -17,9 +17,11 @@ LOG="/var/log/mongodb/mongod.log"
 
 echo ">>> 1/6  RAM detectada y cálculo de límite de cache para MongoDB"
 RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
-# Cache de WiredTiger ~35% de la RAM (mínimo 0.25 GB). Evita que Mongo consuma toda la RAM.
-CACHE_GB=$(awk "BEGIN{v=($RAM_MB*0.35)/1024; if(v<0.25)v=0.25; printf \"%.2f\", v}")
-echo "    RAM = ${RAM_MB} MB  ->  cacheSizeGB = ${CACHE_GB}"
+# Cache de WiredTiger conservadora para un VPS compartido con varias apps:
+# ~25% de la RAM, pero con TOPE de 0.5 GB (los datos de menús son pequeños y no
+# necesita más). Esto libera RAM para las demás apps y evita el OOM.
+CACHE_GB=$(awk "BEGIN{v=($RAM_MB*0.25)/1024; if(v>0.5)v=0.5; if(v<0.25)v=0.25; printf \"%.2f\", v}")
+echo "    RAM = ${RAM_MB} MB  ->  cacheSizeGB = ${CACHE_GB} (tope 0.5 GB para caja compartida)"
 
 echo ">>> 2/6  Ajustando ${CONF} (límite de cache)"
 if [ -f "$CONF" ]; then

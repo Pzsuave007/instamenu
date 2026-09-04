@@ -10,12 +10,12 @@ echo ">>> Actualizando dependencias del backend"
 
 ln -sf "$PROD/.env" "$REPO/backend/.env"
 
-echo ">>> Republicando el frontend"
-bash "$REPO/deploy/publish_frontend.sh"
-
-echo ">>> Reiniciando el backend"
+echo ">>> Reiniciando el backend (lo más crítico primero)"
 bash "$REPO/deploy/start.sh"
 
-echo ">>> Sincronizando autostart (@reboot) con el puerto actual"
+echo ">>> Republicando el frontend (no crítico: si falla, el backend sigue arriba)"
+bash "$REPO/deploy/publish_frontend.sh" || echo "⚠️ publish_frontend tuvo un problema; el backend sigue arriba"
+
+echo ">>> Sincronizando autostart (@reboot) + watchdog con el puerto actual"
 bash "$REPO/deploy/setup-autostart.sh"
 echo "✅ Actualización completada"

@@ -182,6 +182,12 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   - Nota: en el screenshot tool los videos H.264 salen negros porque su Chromium no trae el codec;
     en navegadores reales y Fire TV reproducen bien (verificado: imágenes renderizan, range 206 OK).
 - Canva/web-link removido del webapp (ver historial previo).
+- **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
+  (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
+  sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,
+  si no existe lo hace proxy a `/api/apk` (último APK subido en Super Admin). Además
+  `/api/apk` usa `FileResponse` (streaming desde disco) en backend local para no cargar el
+  APK entero en RAM. El nombre de versión ya no importa (insta8/app.apk/etc.).
 
 ## Backlog
 ### P1

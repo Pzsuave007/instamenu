@@ -11,6 +11,15 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 RewriteCond %{REQUEST_URI} ^/api
 RewriteRule ^(.*)$ http://127.0.0.1:__PORT__/$1 [P,L]
 
+# Descarga del APK del reproductor (Fire TV / Downloader):
+#   - Si el .apk existe fisicamente en public_html, Apache lo sirve tal cual.
+#   - Si NO existe (cualquier nombre: insta8.apk, insta9.apk, app.apk...),
+#     se pide al backend el ultimo APK subido en Super Admin. Nunca cae al home.
+AddType application/vnd.android.package-archive .apk
+RewriteCond %{REQUEST_URI} \.apk$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ http://127.0.0.1:__PORT__/api/apk [P,L]
+
 # Fallback SPA de React (rutas del dashboard y /player)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

@@ -7,11 +7,12 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
 
 from core.db import db
 from core.deps import require_org_user, require_super_admin
 from core.models import now_iso
-from core.storage import APP_PREFIX, get_object, put_object
+from core.storage import APP_PREFIX, STORAGE_BACKEND, get_object, local_file, put_object
 
 router = APIRouter(tags=["player-app"])
 
@@ -88,16 +89,20 @@ async def download_player_apk():
     record = await db.system_settings.find_one({"key": APK_KEY}, {"_id": 0})
     if not record:
         raise HTTPException(status_code=404, detail="No player app has been uploaded yet")
+    headers = {
+        "Content-Disposition": 'attachment; filename="instamenu-player.apk"',
+        "Cache-Control": "no-cache",
+    }
+    # Local (VPS self-hosted): stream from disk so the whole APK never sits in RAM.
+    if STORAGE_BACKEND == "local":
+        try:
+            path, _size, _ctype = local_file(record["storage_path"])
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Storage read failed: {exc}")
+        return FileResponse(path, media_type=APK_CONTENT_TYPE, headers=headers)
     try:
         data, _ = get_object(record["storage_path"])
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Storage read failed: {exc}")
-    return Response(
-        content=data,
-        media_type=APK_CONTENT_TYPE,
-        headers={
-            "Content-Disposition": 'attachment; filename="instamenu-player.apk"',
-            "Content-Length": str(len(data)),
-            "Cache-Control": "no-cache",
-        },
-    )
+    headers["Content-Length"] = str(len(data))
+    return Response(content=data, media_type=APK_CONTENT_TYPE, headers=headers)

@@ -10,8 +10,10 @@
 # NO borra datos. Es seguro correrlo las veces que quieras.
 # ============================================================================
 
-CPANEL_USER="${SUDO_USER:-$(whoami)}"
-REPO="/home/${CPANEL_USER}/repo"
+# Nos ubicamos por la posicion REAL del script (.../home/USUARIO/repo/deploy/recover.sh),
+# asi funciona igual con sudo, como root, o como el usuario de cPanel.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PROD="/opt/${CPANEL_USER}/backend"
 PORT="${APP_PORT:-8010}"
 

@@ -1,8 +1,9 @@
 #!/bin/bash
 # Corre como el usuario de cPanel (lo invoca deploy.sh). Actualizaciones.
 set -e
-CPANEL_USER="$(whoami)"
-REPO="/home/${CPANEL_USER}/repo"
+# Rutas derivadas de la ubicacion real del script (funciona con sudo o como root).
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PROD="/opt/${CPANEL_USER}/backend"
 
 echo ">>> Actualizando dependencias del backend"

@@ -71,6 +71,18 @@ bash "$REPO/deploy/publish_frontend.sh" 2>/dev/null \
 bash "$REPO/deploy/setup-autostart.sh" 2>/dev/null || true
 echo
 
+# ------------------------------------------------------ 3.5) BLINDAJE (root)
+echo ">>> [3.5/4] Blindaje anti-caidas (swap + cache Mongo + auto-reinicio)..."
+if [ "$(id -u)" -eq 0 ]; then
+    bash "$REPO/deploy/harden_mongo.sh" 2>&1 | sed 's/^/        /' \
+        || echo "    !!  harden_mongo tuvo un aviso; continuo."
+    echo "    OK  Blindaje aplicado (swap 4GB, Mongo con auto-reinicio y watchdog)."
+else
+    echo "    !!  Sin permisos root: se omitio el blindaje. Para activarlo corre:"
+    echo "        sudo bash $REPO/deploy/recover.sh"
+fi
+echo
+
 # --------------------------------------------------------- 4) VERIFICACION
 echo ">>> [4/4] Verificando que el backend responda..."
 sleep 2

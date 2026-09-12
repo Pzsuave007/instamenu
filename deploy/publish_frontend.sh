@@ -2,8 +2,9 @@
 # Publica el build del frontend al public_html.
 # TOLERANTE A FALLOS: si no hay build, avisa pero NO tumba el deploy
 # (mantiene el frontend anterior). El backend/API nunca se ve afectado por esto.
-CPANEL_USER="$(whoami)"
-REPO="/home/${CPANEL_USER}/repo"
+# Rutas derivadas de la ubicacion real del script (funciona con sudo o como root).
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PUBLIC_HTML="/home/${CPANEL_USER}/public_html"
 PORT="${APP_PORT:-8010}"
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Reinicia el backend uvicorn en el puerto de esta app. Usado por deploy y por crontab @reboot.
-CPANEL_USER="$(whoami)"
-REPO="/home/${CPANEL_USER}/repo"
+# Rutas derivadas de la ubicacion real del script (funciona con sudo o como root).
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PROD="/opt/${CPANEL_USER}/backend"
 PORT="${APP_PORT:-8010}"
 

@@ -85,9 +85,9 @@ fi
 
 echo ">>> 4/6  Swap (colchón de memoria para evitar OOM)"
 if [ "$(swapon --show | wc -l)" -eq 0 ]; then
-  SWAPSZ=2G
+  SWAPSZ=4G
   echo "    No hay swap. Creando ${SWAPSZ} en /swapfile ..."
-  fallocate -l $SWAPSZ /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  fallocate -l $SWAPSZ /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096
   chmod 600 /swapfile
   mkswap /swapfile >/dev/null
   swapon /swapfile

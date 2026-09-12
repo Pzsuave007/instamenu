@@ -54,12 +54,16 @@ ps -eo rss,comm 2>/dev/null | awk '
   END{ for (k in sum) printf "%8.0f MB   %s\n", sum[k]/1024, k }' | sort -nr
 echo
 
-echo "----- 5) BACKENDS DE INSTAMENU (uvicorn) CORRIENDO -----"
-if pgrep -f "uvicorn server:app" >/dev/null; then
-  ps -eo pid,rss,etime,args 2>/dev/null | grep "uvicorn server:app" | grep -v grep \
-    | awk '{printf "  PID %s  RAM %.0f MB  activo %s\n",$1,$2/1024,$3}'
+echo "----- 5) BACKENDS (uvicorn) CORRIENDO - con su PUERTO -----"
+if pgrep -f "uvicorn" >/dev/null; then
+  ps -eo pid,rss,etime,args 2>/dev/null | grep "uvicorn" | grep -v grep \
+    | awk '{
+        port="?"; for(i=1;i<=NF;i++){ if($i=="--port"){port=$(i+1)} }
+        printf "  PID %-8s RAM %5.0f MB  puerto %-6s activo %s\n",$1,$2/1024,port,$3
+      }'
+  echo "  (InstaMenu usa el puerto 8010. Otros puertos = OTRAS webapps tuyas.)"
 else
-  echo "  NO hay ningun backend de InstaMenu corriendo (posible causa del 503)."
+  echo "  NO hay ningun backend uvicorn corriendo (posible causa del 503)."
 fi
 echo
 
@@ -77,9 +81,14 @@ df -h / 2>/dev/null
 echo
 
 echo "----- 8) MUERTES POR FALTA DE MEMORIA (OOM killer) - ultimas -----"
-(dmesg -T 2>/dev/null || dmesg 2>/dev/null) | grep -iE "killed process|out of memory|oom-kill" | tail -n 10
-grep -iE "killed process|oom" /var/log/messages 2>/dev/null | tail -n 5
-echo "  (Si aparecen lineas aqui, el servidor SE QUEDO SIN RAM y mato apps.)"
+# Solo lineas claras de OOM (sin volcar backtraces gigantes de coredumps).
+{ (dmesg -T 2>/dev/null || dmesg 2>/dev/null); cat /var/log/messages 2>/dev/null; } \
+  | grep -iE "killed process|out of memory|oom-killer|invoked oom|fatalprocessoutofmemory|dumped core" \
+  | grep -ivE "stack trace|0x[0-9a-f]{6}" \
+  | cut -c1-160 \
+  | tail -n 12
+echo "  (Si aparecen lineas aqui, alguna app SE QUEDO SIN RAM. Fijate en el NOMBRE"
+echo "   del proceso: node/next-server = app Next.js;  mongod = base de datos, etc.)"
 echo
 
 echo "=================================================================="

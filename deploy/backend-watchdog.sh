@@ -5,7 +5,8 @@
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PROD="/opt/${CPANEL_USER}/backend"
-PORT="${APP_PORT:-8010}"
+# Puerto DEDICADO de InstaMenu (lee deploy/app_port para no chocar con otras apps).
+PORT="${APP_PORT:-$(cat "$REPO/deploy/app_port" 2>/dev/null || echo 8010)}"
 
 if ! pgrep -f "uvicorn server:app.*--port ${PORT}" >/dev/null; then
     logger "instamenu-backend-watchdog: backend (puerto ${PORT}) caido, reiniciando"

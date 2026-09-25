@@ -5,7 +5,8 @@ set -e
 # Rutas derivadas de la ubicacion real del script (funciona con sudo o como root).
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CPANEL_USER="$(basename "$(dirname "$REPO")")"
-PORT="${APP_PORT:-8010}"
+# Puerto DEDICADO de InstaMenu (lee deploy/app_port para no chocar con otras apps).
+PORT="${APP_PORT:-$(cat "$REPO/deploy/app_port" 2>/dev/null || echo 8010)}"
 REBOOT_CMD="@reboot APP_PORT=${PORT} bash ${REPO}/deploy/start.sh"
 WATCH_CMD="* * * * * APP_PORT=${PORT} bash ${REPO}/deploy/backend-watchdog.sh"
 

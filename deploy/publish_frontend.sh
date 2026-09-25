@@ -6,7 +6,8 @@
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CPANEL_USER="$(basename "$(dirname "$REPO")")"
 PUBLIC_HTML="/home/${CPANEL_USER}/public_html"
-PORT="${APP_PORT:-8010}"
+# Puerto DEDICADO de InstaMenu (lee deploy/app_port para no chocar con otras apps).
+PORT="${APP_PORT:-$(cat "$REPO/deploy/app_port" 2>/dev/null || echo 8010)}"
 
 # Busca el build en frontend/build (Emergent) o en deploy/webrelease (copia persistente).
 BUILD=""

@@ -180,10 +180,13 @@ export default function Player() {
 
   // --- keep the TV awake, and cache the app shell so an offline reboot still plays ---
   useEffect(() => {
-    let lock;
+    let lock = null;
     const acquire = async () => {
       try {
         lock = await navigator.wakeLock?.request("screen");
+        lock?.addEventListener?.("release", () => {
+          lock = null;
+        });
       } catch {
         /* not supported */
       }
@@ -192,9 +195,34 @@ export default function Player() {
     navigator.serviceWorker?.register("/sw.js", { scope: "/player" }).catch(() => {});
     const onVisible = () => document.visibilityState === "visible" && acquire();
     document.addEventListener("visibilitychange", onVisible);
+    // The system can silently drop the lock (e.g. after going full screen) — re-acquire it.
+    const retry = setInterval(() => {
+      if (!lock) acquire();
+    }, 30000);
     return () => {
+      clearInterval(retry);
       document.removeEventListener("visibilitychange", onVisible);
       lock?.release?.().catch(() => {});
+    };
+  }, []);
+
+  // --- enter full screen automatically on the first remote / mouse interaction ---
+  // Browsers require a user gesture, so the first button press on the Fire TV remote
+  // (or any click) flips the player into true full screen and hides the Silk browser bar.
+  useEffect(() => {
+    const go = () => {
+      enterFullscreen();
+      window.removeEventListener("keydown", go);
+      window.removeEventListener("click", go);
+      window.removeEventListener("pointerdown", go);
+    };
+    window.addEventListener("keydown", go);
+    window.addEventListener("click", go);
+    window.addEventListener("pointerdown", go);
+    return () => {
+      window.removeEventListener("keydown", go);
+      window.removeEventListener("click", go);
+      window.removeEventListener("pointerdown", go);
     };
   }, []);
 
@@ -258,6 +286,7 @@ export default function Player() {
         <p className="mt-14 max-w-lg text-center text-base text-zinc-400">
           Open your InstaMenu dashboard, go to Fire TV Devices, choose “Pair New Device” and enter this code.
         </p>
+        <FullscreenButton />
       </div>
     );
   }
@@ -266,6 +295,7 @@ export default function Player() {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-black" data-testid="player-idle">
         <p className="font-display text-4xl font-semibold text-white/80">{orgName}</p>
+        <FullscreenButton />
       </div>
     );
   }
@@ -323,6 +353,86 @@ export default function Player() {
           data-testid="player-offline-dot"
         />
       ) : null}
+      <FullscreenButton />
     </div>
+  );
+}
+
+function enterFullscreen() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen;
+  if (req) {
+    try {
+      req.call(el);
+    } catch {
+      /* fullscreen not allowed */
+    }
+  }
+}
+
+function exitFullscreen() {
+  const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+  if (ex) {
+    try {
+      ex.call(document);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Floating button so Fire TV Silk / any browser can hide its chrome and go full screen.
+ *  Auto-hides a few seconds after entering full screen; reappears on remote/mouse activity. */
+function FullscreenButton() {
+  const [fs, setFs] = useState(false);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const onChange = () => setFs(!!(document.fullscreenElement || document.webkitFullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+
+  // While in full screen, reveal the button only on activity, then fade it out again.
+  useEffect(() => {
+    if (!fs) {
+      setVisible(true);
+      return;
+    }
+    let timer;
+    const show = () => {
+      setVisible(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setVisible(false), 3000);
+    };
+    show();
+    window.addEventListener("keydown", show);
+    window.addEventListener("mousemove", show);
+    window.addEventListener("click", show);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", show);
+      window.removeEventListener("mousemove", show);
+      window.removeEventListener("click", show);
+    };
+  }, [fs]);
+
+  const toggle = () =>
+    document.fullscreenElement || document.webkitFullscreenElement ? exitFullscreen() : enterFullscreen();
+
+  return (
+    <button
+      onClick={toggle}
+      data-testid="player-fullscreen-btn"
+      className={`fixed bottom-4 left-4 z-50 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/80 backdrop-blur transition-opacity duration-500 hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      {fs ? "Exit full screen" : "⛶ Full screen"}
+    </button>
   );
 }

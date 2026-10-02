@@ -197,6 +197,12 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   Agregado item "Locations" (icono MapPin). Settings/Account solo tiene add/remove simple.
   Build de produccion regenerado en `deploy/webrelease` (OJO: compilar con
   `REACT_APP_BACKEND_URL=https://instamenuapp.com yarn build`, el `.env` trae la URL de preview).
+- **Reproductor web mejorado para Silk/Fire TV (2026-06)**: `Player.jsx` tiene auto-fullscreen
+  al primer gesto (keydown/click/pointerdown), boton manual `player-fullscreen-btn` (auto-oculta),
+  y wake-lock reforzado (re-acquire cada 30s + on visibilitychange). Contexto: Fire Stick nuevos
+  4K Select(2025)/HD(2026) usan Vega OS (NO sideload, NO corre APK Android) => usar reproductor web
+  en Silk. El 4K 2a gen (2023, Fire OS 8) SI permite sideload (7 taps en About). Ademas el
+  screensaver del Fire TV es del sistema: ponerlo en "Never" para garantizar que no se apague.
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

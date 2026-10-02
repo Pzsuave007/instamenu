@@ -3,5 +3,14 @@
     "deploy/webrelease/**",
     "frontend/build/**",
     "**/*.min.js"
-  ]
+  ],
+  "env": {
+    "browser": true,
+    "worker": true,
+    "serviceworker": true
+  },
+  "globals": {
+    "WorkerGlobalScope": "readonly",
+    "__REACT_DEVTOOLS_GLOBAL_HOOK__": "readonly"
+  }
 }

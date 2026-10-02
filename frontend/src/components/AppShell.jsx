@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ListVideo,
   LogOut,
+  MapPin,
   Menu,
   Monitor,
   Settings,
@@ -21,6 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 const restaurantNav = [
   { to: "/dashboard", label: "My TVs", icon: LayoutDashboard },
   { to: "/screens", label: "Screens", icon: Monitor },
+  { to: "/locations", label: "Locations", icon: MapPin },
   { to: "/media", label: "Media Library", icon: Image },
   { to: "/devices", label: "Fire TV Devices", icon: Tv },
   { to: "/playlists", label: "Playlists", icon: ListVideo },

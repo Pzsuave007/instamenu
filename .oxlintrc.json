@@ -1,0 +1,7 @@
+{
+  "ignorePatterns": [
+    "deploy/webrelease/**",
+    "frontend/build/**",
+    "**/*.min.js"
+  ]
+}

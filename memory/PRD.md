@@ -182,6 +182,21 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   - Nota: en el screenshot tool los videos H.264 salen negros porque su Chromium no trae el codec;
     en navegadores reales y Fire TV reproducen bien (verificado: imágenes renderizan, range 206 OK).
 - Canva/web-link removido del webapp (ver historial previo).
+- **Puerto dedicado por app (2026-06)**: el VPS self-host corre varias apps que compartian
+  el puerto default 8010 -> chocaban (Ben's Road Service robaba 8010 a InstaMenu => login 404).
+  Solucion: `deploy/app_port` (=8012) y TODOS los scripts (start/publish/watchdog/autostart/recover)
+  leen de ahi. En preview no chocaba porque cada app esta aislada en su contenedor.
+- **Bug de rutas con sudo (2026-06)**: start/publish/watchdog/autostart/fix usaban `whoami`
+  (=root con sudo) => rutas `/home/root/...` => watchdogs/autostart nunca se instalaban bien.
+  Ahora derivan REPO de `${BASH_SOURCE}` y CPANEL_USER del path. Funciona con sudo o root.
+- **Scripts self-service de operacion**: `deploy/status.sh` (radiografia RAM/apps/OOM, read-only),
+  `deploy/recover.sh` (revive Mongo+backend, blinda, verifica), `deploy/add_swap.sh` (agranda swap).
+  Causa raiz de caidas por RAM identificada: app Next.js externa `ezloadndump` (puerto 3002) hace OOM.
+- **Locations en el menu + edicion (2026-06)**: la pagina `Locations.jsx` (CRUD completo con
+  nombre/direccion/ciudad/estado via `Edit details`) existia pero faltaba en el sidebar de AppShell.
+  Agregado item "Locations" (icono MapPin). Settings/Account solo tiene add/remove simple.
+  Build de produccion regenerado en `deploy/webrelease` (OJO: compilar con
+  `REACT_APP_BACKEND_URL=https://instamenuapp.com yarn build`, el `.env` trae la URL de preview).
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

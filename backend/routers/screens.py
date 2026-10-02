@@ -328,6 +328,12 @@ async def update_screen(screen_id: str, payload: ScreenUpdate, user: dict = Depe
     res = await db.screens.update_one({"id": screen_id, "org_id": user["org_id"]}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Screen not found")
+    # Keep the paired Fire TV in the same location as its screen.
+    if "location_id" in updates:
+        await db.devices.update_many(
+            {"screen_id": screen_id, "org_id": user["org_id"]},
+            {"$set": {"location_id": updates["location_id"]}},
+        )
     await audit(user["org_id"], user["id"], "screen.update", "screen", screen_id, updates)
     return await db.screens.find_one({"id": screen_id}, {"_id": 0})
 

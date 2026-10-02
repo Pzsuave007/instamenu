@@ -203,6 +203,12 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   4K Select(2025)/HD(2026) usan Vega OS (NO sideload, NO corre APK Android) => usar reproductor web
   en Silk. El 4K 2a gen (2023, Fire OS 8) SI permite sideload (7 taps en About). Ademas el
   screensaver del Fire TV es del sistema: ponerlo en "Never" para garantizar que no se apague.
+- **Mover pantalla/Fire TV a otra localidad (2026-06)**: el device hereda `location_id` de su
+  screen, pero no habia UI para cambiar la localidad de una screen existente. Agregado selector
+  "Location" en `ScreenDetail.jsx` (Advanced, visible si locations>1) que hace PATCH /screens
+  con `location_id` (el backend ya lo soportaba). Backend `update_screen` ahora tambien sincroniza
+  `db.devices` (screen_id -> nuevo location_id) para que el Fire TV emparejado se mueva con la screen.
+  Verificado por curl (crear 2a loc -> PATCH screen -> location_id/location_name OK).
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

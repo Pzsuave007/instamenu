@@ -25,6 +25,7 @@ export default function ScreenDetail() {
   const [showSettings, setShowSettings] = useState(false);
   const [library, setLibrary] = useState([]);
   const [playlists, setPlaylists] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [picked, setPicked] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,6 +61,7 @@ export default function ScreenDetail() {
     api.get("/devices").then((r) => setDevices(r.data));
     api.get("/media").then((r) => setLibrary(r.data)).catch(() => {});
     api.get("/playlists").then((r) => setPlaylists(r.data)).catch(() => {});
+    api.get("/locations").then((r) => setLocations(r.data)).catch(() => {});
   }, [load]);
 
   const openLibrary = () => {
@@ -420,6 +422,29 @@ export default function ScreenDetail() {
                     </SelectContent>
                   </Select>
                 </div>
+                {locations.length > 1 ? (
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Select
+                      value={screen.location_id || undefined}
+                      onValueChange={(v) => updateSetting({ location_id: v })}
+                    >
+                      <SelectTrigger data-testid="screen-detail-location-select">
+                        <SelectValue placeholder="Choose a location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-zinc-400">
+                      The paired Fire TV moves with this screen to the chosen location.
+                    </p>
+                  </div>
+                ) : null}
               </div>
               <p className="mt-5 text-xs text-zinc-400" data-testid="screen-playlist-version">
                 Playing playlist "{screen.playlist?.name}" · version {screen.playlist?.version ?? 1}

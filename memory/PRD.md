@@ -209,6 +209,11 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   con `location_id` (el backend ya lo soportaba). Backend `update_screen` ahora tambien sincroniza
   `db.devices` (screen_id -> nuevo location_id) para que el Fire TV emparejado se mueva con la screen.
   Verificado por curl (crear 2a loc -> PATCH screen -> location_id/location_name OK).
+- **Anti-screensaver en reproductor web (2026-06)**: agregado `nosleep.js` (^0.12.0). En el primer
+  gesto del usuario, `Player.jsx` llama `noSleep.enable()` (video oculto en loop) para que Fire OS
+  crea que hay video activo y NO lance el screensaver del sistema (que al tocarlo mandaba Silk a la
+  tienda). Se re-activa on visibilitychange. NOTA: el screensaver es del sistema; recomendar tambien
+  poner "Start time" al maximo. Garantia 100% solo con la app nativa (FLAG_KEEP_SCREEN_ON) en Fire OS.
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

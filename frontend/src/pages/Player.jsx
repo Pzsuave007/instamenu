@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import NoSleep from "nosleep.js";
 import {
   cacheAsset,
   fetchConfig,
@@ -206,12 +207,16 @@ export default function Player() {
     };
   }, []);
 
-  // --- enter full screen automatically on the first remote / mouse interaction ---
-  // Browsers require a user gesture, so the first button press on the Fire TV remote
-  // (or any click) flips the player into true full screen and hides the Silk browser bar.
+  // --- enter full screen + defeat the Fire TV screensaver on first interaction ---
+  // Browsers require a user gesture, so the first remote button / click:
+  //  1) flips the player into true full screen (hides the Silk browser bar), and
+  //  2) starts NoSleep (a hidden looping video) so Fire OS thinks video is playing
+  //     and never launches its system screensaver (which would kick Silk to the app store).
   useEffect(() => {
+    const noSleep = new NoSleep();
     const go = () => {
       enterFullscreen();
+      noSleep.enable().catch(() => {});
       window.removeEventListener("keydown", go);
       window.removeEventListener("click", go);
       window.removeEventListener("pointerdown", go);
@@ -219,10 +224,19 @@ export default function Player() {
     window.addEventListener("keydown", go);
     window.addEventListener("click", go);
     window.addEventListener("pointerdown", go);
+    // If the system ever pauses the keep-awake video, re-enable it when we're visible again.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !noSleep.isEnabled) {
+        noSleep.enable().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("keydown", go);
       window.removeEventListener("click", go);
       window.removeEventListener("pointerdown", go);
+      document.removeEventListener("visibilitychange", onVisible);
+      noSleep.disable();
     };
   }, []);
 

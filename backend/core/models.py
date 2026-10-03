@@ -54,6 +54,7 @@ class UserIn(Base):
 
 class UserUpdate(Base):
     name: Optional[str] = None
+    email: Optional[EmailStr] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,8 @@ export default function AdminUsers() {
   const [orgs, setOrgs] = useState([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "owner", org_id: "" });
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", password: "" });
 
   const load = () => api.get("/admin/users").then((r) => setUsers(r.data)).catch((e) => toast.error(apiError(e)));
 
@@ -47,6 +49,30 @@ export default function AdminUsers() {
     try {
       await api.post(`/admin/users/${user.id}/reset-password`, { password });
       toast.success("Password reset");
+    } catch (e) {
+      toast.error(apiError(e));
+    }
+  };
+
+  const openEdit = (user) => {
+    setEditForm({ name: user.name || "", email: user.email || "", password: "" });
+    setEditUser(user);
+  };
+
+  const saveEdit = async () => {
+    const newEmail = editForm.email.toLowerCase().trim();
+    if (editForm.password && editForm.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    try {
+      await api.patch(`/admin/users/${editUser.id}`, { name: editForm.name.trim(), email: newEmail });
+      if (editForm.password) {
+        await api.post(`/admin/users/${editUser.id}/reset-password`, { password: editForm.password });
+      }
+      toast.success("User updated");
+      setEditUser(null);
+      load();
     } catch (e) {
       toast.error(apiError(e));
     }
@@ -112,6 +138,15 @@ export default function AdminUsers() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-full"
+                        onClick={() => openEdit(u)}
+                        data-testid={`edit-user-${u.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -217,6 +252,57 @@ export default function AdminUsers() {
               data-testid="save-user"
             >
               Create user
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editUser} onOpenChange={(v) => !v && setEditUser(null)}>
+        <DialogContent data-testid="edit-user-dialog">
+          <DialogHeader>
+            <DialogTitle>Edit user</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                data-testid="edit-user-name-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (login)</Label>
+              <Input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                data-testid="edit-user-email-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>
+                New password <span className="text-xs text-zinc-400">(optional — leave blank to keep current)</span>
+              </Label>
+              <Input
+                value={editForm.password}
+                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                placeholder="••••••"
+                data-testid="edit-user-password-input"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setEditUser(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="rounded-full"
+              onClick={saveEdit}
+              disabled={!editForm.name || !editForm.email}
+              data-testid="save-edit-user"
+            >
+              Save changes
             </Button>
           </DialogFooter>
         </DialogContent>

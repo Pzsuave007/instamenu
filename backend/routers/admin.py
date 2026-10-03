@@ -134,9 +134,16 @@ async def update_user(user_id: str, payload: UserUpdate, admin: dict = Depends(r
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="Nothing to update")
+    if "email" in updates:
+        email = updates["email"].lower().strip()
+        clash = await db.users.find_one({"email": email, "id": {"$ne": user_id}})
+        if clash:
+            raise HTTPException(status_code=409, detail="A user with this email already exists")
+        updates["email"] = email
     res = await db.users.update_one({"id": user_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    await audit(None, admin["id"], "user.update", "user", user_id, updates)
     return await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
 
 

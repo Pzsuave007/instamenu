@@ -214,6 +214,11 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   crea que hay video activo y NO lance el screensaver del sistema (que al tocarlo mandaba Silk a la
   tienda). Se re-activa on visibilitychange. NOTA: el screensaver es del sistema; recomendar tambien
   poner "Start time" al maximo. Garantia 100% solo con la app nativa (FLAG_KEEP_SCREEN_ON) en Fire OS.
+- **Editar email+password de cuentas existentes desde Admin (2026-06)**: `UserUpdate` ahora incluye
+  `email` (EmailStr); `PATCH /admin/users/{id}` normaliza email a minusculas y valida unicidad
+  (clash con `id: {$ne}`). Frontend `AdminUsers.jsx`: boton lapiz por fila -> dialog "Edit user"
+  (name, email login, new password opcional que llama reset-password). Verificado por curl
+  (cambiar email/pw -> login nuevo 200, viejo 401, revert OK) y screenshot UI.
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

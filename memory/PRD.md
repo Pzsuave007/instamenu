@@ -219,6 +219,12 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   (clash con `id: {$ne}`). Frontend `AdminUsers.jsx`: boton lapiz por fila -> dialog "Edit user"
   (name, email login, new password opcional que llama reset-password). Verificado por curl
   (cambiar email/pw -> login nuevo 200, viejo 401, revert OK) y screenshot UI.
+- **Amazon Appstore prep (2026-06)**: pagina publica `/privacy` (Privacy.jsx, ruta publica en App.js)
+  para Uni2 Marketing Group, contacto pzsuave007@gmail.com. Assets en `frontend/public/store-assets/`:
+  icon-512.png (PNG 512x512), screenshot-1-menu-1280x720.png, screenshot-2-promo-1280x720.png,
+  feature-1920x1080.png (generados con nano banana, convertidos a PNG/16:9 con Pillow). Categoria: Business.
+  Nombre tienda: InstaMenu. APK firmado: el usuario lo tiene (GitHub Actions). Pendiente del usuario:
+  crear una cuenta demo en produccion para el revisor de Amazon.
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

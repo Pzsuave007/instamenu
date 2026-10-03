@@ -225,6 +225,10 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   feature-1920x1080.png (generados con nano banana, convertidos a PNG/16:9 con Pillow). Categoria: Business.
   Nombre tienda: InstaMenu. APK firmado: el usuario lo tiene (GitHub Actions). Pendiente del usuario:
   crear una cuenta demo en produccion para el revisor de Amazon.
+- **Seed cuenta demo (2026-06)**: `backend/scripts/seed_demo.py` + `deploy/seed_demo.sh` crean
+  (idempotente) la cuenta demo `demo@instamenuapp.com` / `DemoReview2026` con org/location/2 imagenes
+  (de store-assets via put_object)/playlist/screen. Carga backend/.env manualmente (quita comillas),
+  agrega BACKEND_DIR a sys.path. Verificado en preview (login + screens/media/playlists OK).
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

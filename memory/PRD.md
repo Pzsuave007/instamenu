@@ -261,3 +261,4 @@ See `/app/memory/test_credentials.md`.
 - Sections: Nav, Hero (store-assets screenshots), Features, How it works, Demo/Contact, Footer.
 - Contact form = UniTech embed (slug `uni2`, type contact, lang en, accent #ea580c, branding off). Script injected on mount so it re-renders on SPA navigation. Leads land in user's UniTech CRM.
 - Embed only supports Name/Phone/Email/Message (no restaurant / # screens fields).
+- 2026-06: Landing ES/EN toggle (default from browser language, saved in localStorage `im_lang`). UniTech form re-renders with data-lang on switch. Note: ezunitech.com/embed.js can take ~6s to load on first visit (their server).

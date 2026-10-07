@@ -90,7 +90,7 @@ export default function Screens() {
                 </div>
                 <p className="mt-1 text-sm text-zinc-500">
                   {s.item_count ?? 0} item{(s.item_count ?? 0) === 1 ? "" : "s"} ·{" "}
-                  {s.device?.name || "No Fire TV"} · seen {timeAgo(s.last_seen)}
+                  {s.device?.name || "No player"} · seen {timeAgo(s.last_seen)}
                 </p>
                 <div className="mt-5 flex gap-2">
                   <Button asChild className="flex-1 rounded-full" data-testid={`open-screen-${s.id}`}>

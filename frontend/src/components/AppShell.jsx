@@ -24,7 +24,7 @@ const restaurantNav = [
   { to: "/screens", label: "Screens", icon: Monitor },
   { to: "/locations", label: "Locations", icon: MapPin },
   { to: "/media", label: "Media Library", icon: Image },
-  { to: "/devices", label: "Fire TV Devices", icon: Tv },
+  { to: "/devices", label: "Players", icon: Tv },
   { to: "/playlists", label: "Playlists", icon: ListVideo },
   { to: "/account", label: "Settings", icon: Settings },
 ];

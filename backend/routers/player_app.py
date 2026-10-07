@@ -1,7 +1,7 @@
-"""Self-hosted distribution of the Fire TV player APK.
+"""Self-hosted distribution of the InstaMenu player APK.
 
 Super Admin uploads the APK once; every television then installs it from a short link
-(`/api/apk`) typed into the Fire TV "Downloader" app. No GitHub, Drive or ADB needed.
+(`/api/apk`) typed into the player's "Downloader" app. No GitHub, Drive or ADB needed.
 """
 import os
 from typing import Optional

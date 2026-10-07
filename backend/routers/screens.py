@@ -328,7 +328,7 @@ async def update_screen(screen_id: str, payload: ScreenUpdate, user: dict = Depe
     res = await db.screens.update_one({"id": screen_id, "org_id": user["org_id"]}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Screen not found")
-    # Keep the paired Fire TV in the same location as its screen.
+    # Keep the paired player in the same location as its screen.
     if "location_id" in updates:
         await db.devices.update_many(
             {"screen_id": screen_id, "org_id": user["org_id"]},
@@ -419,7 +419,7 @@ async def update_playlist(playlist_id: str, payload: PlaylistUpdate, user: dict 
     updates["updated_at"] = now_iso()
     ops = {"$set": updates}
     if content_changed:
-        ops["$inc"] = {"version": 1}  # version bump drives Fire TV auto-update
+        ops["$inc"] = {"version": 1}  # version bump drives player auto-update
     await db.playlists.update_one({"id": playlist_id}, ops)
     fresh = await db.playlists.find_one({"id": playlist_id}, {"_id": 0})
     return await hydrate_playlist(user["org_id"], fresh)

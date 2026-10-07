@@ -54,7 +54,7 @@ export default function AdminSystem() {
       <PageHeader title="System" subtitle="Connected display devices and the player API contract." />
 
         <Card className="mb-8 border-zinc-200 p-6 shadow-sm">
-          <h2 className="mb-1 text-lg font-semibold">Fire TV player app</h2>
+          <h2 className="mb-1 text-lg font-semibold">InstaMenu player app</h2>
           <p className="mb-5 text-sm text-zinc-500">
             Upload the APK once and every television installs it from one short link — no GitHub, Drive or cables.
           </p>
@@ -108,7 +108,7 @@ export default function AdminSystem() {
                 </Button>
               </div>
               <p className="mt-4 text-sm text-zinc-400">
-                On the Fire TV: enable <strong>Apps from Unknown Sources</strong>, open the free{" "}
+                On the player: enable <strong>Apps from Unknown Sources</strong>, open the{" "}
                 <strong>Downloader</strong> app, enter that address and press Go.
               </p>
               <p className="mt-2 text-xs text-zinc-500">
@@ -161,7 +161,7 @@ export default function AdminSystem() {
       <Card className="border-zinc-200 p-6 shadow-sm">
         <h2 className="mb-1 text-lg font-semibold">Display device API</h2>
         <p className="mb-5 text-sm text-zinc-500">
-          The Fire TV player only needs these endpoints. All authentication uses a persistent device token, never a user
+          The InstaMenu player only needs these endpoints. All authentication uses a persistent device token, never a user
           password.
         </p>
         <div className="divide-y divide-zinc-100" data-testid="device-api-list">

@@ -44,7 +44,7 @@ export default function Dashboard() {
         <EmptyState
           icon={Monitor}
           title="Let's get your first TV running"
-          description="Add a screen, drop in your videos, then pair your Fire TV stick. Three steps, that's it."
+          description="Add a screen, drop in your videos, then pair your InstaMenu player. Three steps, that's it."
           actionLabel="Add Screen"
           onAction={() => (window.location.href = "/screens")}
           testId="dashboard-empty-screens"
@@ -65,7 +65,7 @@ export default function Dashboard() {
                 <div className="p-6">
                   <p className="truncate font-display text-lg font-semibold text-zinc-900">{s.name}</p>
                   <p className="mt-1 text-sm text-zinc-500">
-                    {s.item_count} item{s.item_count === 1 ? "" : "s"} · {s.device_name || "No Fire TV paired"}
+                    {s.item_count} item{s.item_count === 1 ? "" : "s"} · {s.device_name || "No player paired"}
                   </p>
                   <p className="mt-0.5 text-xs text-zinc-400">Last seen {timeAgo(s.last_seen)}</p>
                 </div>
@@ -80,7 +80,7 @@ export default function Dashboard() {
         <div className="mt-10 flex flex-wrap items-center gap-x-10 gap-y-4 rounded-2xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
           <span className="flex items-center gap-2 text-zinc-600" data-testid="stat-devices">
             <Tv className="h-4 w-4 text-zinc-400" />
-            {stats.devices_online} of {stats.devices} Fire TVs online
+            {stats.devices_online} of {stats.devices} players online
           </span>
           <span className="flex items-center gap-2 text-zinc-600" data-testid="stat-screens">
             <Monitor className="h-4 w-4 text-zinc-400" />

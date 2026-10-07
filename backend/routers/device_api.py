@@ -1,4 +1,4 @@
-"""Display-device REST API (Fire TV player). Token-authenticated, no user credentials.
+"""Display-device REST API (InstaMenu player). Token-authenticated, no user credentials.
 
 Flow:
   1. POST /api/device/pair/request  -> returns pairing code (shown on TV)
@@ -74,7 +74,7 @@ async def pair_status(hardware_id: str = Query(...), code: str = Query(...)):
 
 
 def _media_url(request: Request, media_id: str, token: str) -> str:
-    """Media URLs must be reachable from outside the cluster (Fire TV devices)."""
+    """Media URLs must be reachable from outside the cluster (player devices)."""
     base = (os.environ.get("PUBLIC_BASE_URL") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
     return f"{base}/api/media/{media_id}/file?device_token={token}"
 

@@ -229,6 +229,12 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
   (idempotente) la cuenta demo `demo@instamenuapp.com` / `DemoReview2026` con org/location/2 imagenes
   (de store-assets via put_object)/playlist/screen. Carga backend/.env manualmente (quita comillas),
   agrega BACKEND_DIR a sys.path. Verificado en preview (login + screens/media/playlists OK).
+- **Rebrand: quitar Fire TV/Amazon (2026-06)**: el usuario migro a un Android stick generico (AOSP)
+  que corre el APK nativo sin trabas. Se reemplazaron TODAS las referencias "Fire TV / Fire Stick /
+  Amazon / Fire OS" por "InstaMenu Player / player" en frontend (AppShell nav -> "Players", Login,
+  Devices, Dashboard, Screens, MediaLibrary, ScreenDetail, AdminSystem, Player.jsx) y comentarios
+  backend (screens/device_api/player_app). Build verificado: 0 referencias Fire TV. Mensaje: "nuestra
+  propia tecnologia / nuestro propio stick que proveemos".
 - **Fix descarga APK (2026-06)**: el usuario tecleaba `instamenuapp.com/insta8.apk`
   (archivo estático inexistente) y el SPA fallback devolvía el home. Ahora `deploy/htaccess`
   sirve cualquier `*.apk`: si existe físicamente en public_html lo entrega con MIME correcto,

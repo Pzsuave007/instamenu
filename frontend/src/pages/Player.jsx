@@ -18,7 +18,7 @@ import {
 const HEARTBEAT_MS = 60000;
 const PAIR_POLL_MS = 5000;
 
-/** Fullscreen TV player. Runs on Fire TV Silk browser or any kiosk browser. */
+/** Fullscreen TV player. Runs on any Android / kiosk browser. */
 export default function Player() {
   const [code, setCode] = useState(null);
   const [config, setConfig] = useState(null);
@@ -207,10 +207,10 @@ export default function Player() {
     };
   }, []);
 
-  // --- enter full screen + defeat the Fire TV screensaver on first interaction ---
+  // --- enter full screen + defeat the TV screensaver on first interaction ---
   // Browsers require a user gesture, so the first remote button / click:
-  //  1) flips the player into true full screen (hides the Silk browser bar), and
-  //  2) starts NoSleep (a hidden looping video) so Fire OS thinks video is playing
+  //  1) flips the player into true full screen (hides the browser bar), and
+  //  2) starts NoSleep (a hidden looping video) so the TV thinks video is playing
   //     and never launches its system screensaver (which would kick Silk to the app store).
   useEffect(() => {
     const noSleep = new NoSleep();
@@ -298,7 +298,7 @@ export default function Player() {
           {code || "······"}
         </p>
         <p className="mt-14 max-w-lg text-center text-base text-zinc-400">
-          Open your InstaMenu dashboard, go to Fire TV Devices, choose “Pair New Device” and enter this code.
+          Open your InstaMenu dashboard, go to Players, choose “Pair New Device” and enter this code.
         </p>
         <FullscreenButton />
       </div>
@@ -395,7 +395,7 @@ function exitFullscreen() {
   }
 }
 
-/** Floating button so Fire TV Silk / any browser can hide its chrome and go full screen.
+/** Floating button so any kiosk browser can hide its chrome and go full screen.
  *  Auto-hides a few seconds after entering full screen; reappears on remote/mouse activity. */
 function FullscreenButton() {
   const [fs, setFs] = useState(false);

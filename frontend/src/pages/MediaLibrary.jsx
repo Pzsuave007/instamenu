@@ -219,7 +219,7 @@ export default function MediaLibrary() {
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{s.name}</span>
                     <span className="block text-xs text-zinc-500">
-                      {s.item_count} item{s.item_count === 1 ? "" : "s"} · {s.device?.name || "no Fire TV"}
+                      {s.item_count} item{s.item_count === 1 ? "" : "s"} · {s.device?.name || "no player"}
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-medium text-orange-600">Add</span>

@@ -52,7 +52,7 @@ export default function Login() {
         </div>
         <div className="flex gap-10 text-sm text-zinc-500">
           <div>
-            <p className="font-display text-2xl text-white">Fire TV</p>
+            <p className="font-display text-2xl text-white">Our Player</p>
             <p>Plug and play pairing</p>
           </div>
           <div>

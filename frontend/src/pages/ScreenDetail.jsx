@@ -137,7 +137,7 @@ export default function ScreenDetail() {
   const assignDevice = async (deviceId) => {
     try {
       await api.patch(`/devices/${deviceId}`, { screen_id: screenId });
-      toast.success("Fire TV assigned to this screen");
+      toast.success("Player assigned to this screen");
       load();
       api.get("/devices").then((r) => setDevices(r.data));
     } catch (e) {
@@ -169,7 +169,7 @@ export default function ScreenDetail() {
           <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
             <StatusDot online={screen.online} />
             <span>·</span>
-            <span>{screen.device ? screen.device.name : "No Fire TV paired yet"}</span>
+            <span>{screen.device ? screen.device.name : "No player paired yet"}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -357,10 +357,10 @@ export default function ScreenDetail() {
               <h2 className="mb-2 text-lg font-semibold">Connect a television</h2>
               {unassigned.length ? (
                 <>
-                  <p className="mb-4 text-sm text-zinc-500">Pick a Fire TV you already paired.</p>
+                  <p className="mb-4 text-sm text-zinc-500">Pick a player you already paired.</p>
                   <Select onValueChange={assignDevice}>
                     <SelectTrigger data-testid="assign-device-select">
-                      <SelectValue placeholder="Choose a Fire TV" />
+                      <SelectValue placeholder="Choose a player" />
                     </SelectTrigger>
                     <SelectContent>
                       {unassigned.map((d) => (
@@ -374,11 +374,11 @@ export default function ScreenDetail() {
               ) : (
                 <>
                   <p className="mb-4 text-sm text-zinc-500">
-                    Open the InstaMenu app on your Fire TV and enter the code it shows.
+                    Open the InstaMenu app on your player and enter the code it shows.
                   </p>
                   <Button asChild className="w-full rounded-full" data-testid="screen-pair-cta">
                     <Link to="/devices">
-                      <Tv className="mr-2 h-4 w-4" /> Pair a Fire TV
+                      <Tv className="mr-2 h-4 w-4" /> Pair a Player
                     </Link>
                   </Button>
                 </>
@@ -441,7 +441,7 @@ export default function ScreenDetail() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-zinc-400">
-                      The paired Fire TV moves with this screen to the chosen location.
+                      The paired player moves with this screen to the chosen location.
                     </p>
                   </div>
                 ) : null}

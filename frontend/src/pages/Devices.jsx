@@ -41,7 +41,7 @@ export default function Devices() {
       await api.post("/devices/pair", {
         code: form.code,
         screen_id: form.screen_id,
-        name: form.name || `${screen?.name || "Fire"} TV`,
+        name: form.name || `${screen?.name || "New"} Player`,
         ...(screen?.location_id ? { location_id: screen.location_id } : {}),
       });
       toast.success("Paired. Your television will start playing shortly.");
@@ -92,7 +92,7 @@ export default function Devices() {
 
   return (
     <AppShell>
-      <PageHeader title="Devices" subtitle="Pair a Fire TV in seconds using the code shown on the television.">
+      <PageHeader title="Players" subtitle="Pair a player in seconds using the code shown on the television.">
         <Button
           className="rounded-full px-5"
           onClick={() => setOpen(true)}
@@ -106,14 +106,14 @@ export default function Devices() {
       <Card className="mb-8 border-zinc-200 bg-zinc-900 p-6 text-white shadow-sm im-grain">
         <p className="text-sm font-medium text-orange-400">How pairing works</p>
         <ol className="mt-3 grid gap-3 text-sm text-zinc-300 sm:grid-cols-3">
-          <li>1. Open the InstaMenu app on the Fire TV. A 6-digit code appears.</li>
+          <li>1. Open the InstaMenu app on your player. A 6-digit code appears.</li>
           <li>2. Click "Pair New Device" and type that code.</li>
           <li>3. Choose the screen it should display. Done — no remote typing.</li>
         </ol>
         {playerApp?.available ? (
           <div className="mt-5 border-t border-white/10 pt-4" data-testid="devices-install-link">
             <p className="text-sm text-zinc-400">
-              New television? On the Fire TV open the <strong className="text-white">Downloader</strong> app and enter:
+              Setting up a new player? Open the <strong className="text-white">Downloader</strong> app on it and enter:
             </p>
             <code className="mt-2 block break-all font-mono text-base text-orange-300">
               {playerApp.download_url?.replace(/^https?:\/\//, "")}
@@ -126,7 +126,7 @@ export default function Devices() {
         <EmptyState
           icon={Tv}
           title="No devices paired"
-          description="Launch the InstaMenu app on your Fire TV Stick and enter the code it shows here."
+          description="Launch the InstaMenu app on your player and enter the code it shows here."
           actionLabel={screens.length ? "Pair New Device" : "Create a screen first"}
           onAction={() => (screens.length ? setOpen(true) : (window.location.href = "/screens"))}
           testId="devices-empty"

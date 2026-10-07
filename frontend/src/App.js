@@ -14,6 +14,7 @@ import Devices from "@/pages/Devices";
 import Account from "@/pages/Account";
 import Player from "@/pages/Player";
 import Privacy from "@/pages/Privacy";
+import Home from "@/pages/Home";
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminRestaurants from "@/pages/admin/AdminRestaurants";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -35,7 +36,7 @@ function Protected({ children, adminOnly }) {
 function Landing() {
   const { user, ready } = useAuth();
   if (!ready) return <Loading />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Home />;
   return <Navigate to={user.role === "super_admin" && !user.impersonating ? "/admin" : "/dashboard"} replace />;
 }
 

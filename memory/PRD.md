@@ -255,3 +255,9 @@ no reload, device reports `playing` with the right playlist version, no 429s, me
 
 ## Credentials
 See `/app/memory/test_credentials.md`.
+
+## 2026-06 — Public Landing Page
+- `/` now shows public marketing landing (`pages/Home.jsx`) for logged-out visitors; logged-in users still redirect to dashboard/admin.
+- Sections: Nav, Hero (store-assets screenshots), Features, How it works, Demo/Contact, Footer.
+- Contact form = UniTech embed (slug `uni2`, type contact, lang en, accent #ea580c, branding off). Script injected on mount so it re-renders on SPA navigation. Leads land in user's UniTech CRM.
+- Embed only supports Name/Phone/Email/Message (no restaurant / # screens fields).

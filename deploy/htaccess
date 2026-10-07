@@ -3,6 +3,13 @@ RewriteEngine On
 # Servir SIEMPRE el index.html de React (no un index.php viejo que haya quedado)
 DirectoryIndex index.html
 
+# index.html nunca en cache (asi cada deploy se ve al instante)
+<IfModule mod_headers.c>
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
 # Forzar HTTPS
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
